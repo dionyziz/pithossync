@@ -84,41 +84,41 @@ class TestSync(unittest.TestCase):
             print('You can do this by running:')
             print('ASTAKOS_TOKEN="your_token_here" python runtests.py\n')
 
-#    def test_empty_clone(self):
-#        """Check if cloning an empty folder works."""
-#
-#        os.mkdir(self.local)
-#        self.local_write_file('dummy', '')
-#        self.assertRaises(
-#            pithossync.DirectoryNotEmptyError,
-#            self.syncer.clone,
-#            self.local,
-#            self.folder
-#        )
-#        os.unlink(os.path.join(self.local, 'dummy'))
-#        self.syncer.clone(self.local, self.folder)
-#        # make sure the directory is still empty after cloning an empty
-#        # server-side directory
-#        os.mkdir(self.local_workspace)
-#        self.assertTreesEqual(self.local, self.local_workspace)
-#        # make sure the server-side directory is not affected by the clone operation
-#        self.assertTrue(self.folder_empty(self.folder))
-# 
-#    def test_clone_one_text(self):
-#        """Check if cloning a folder containing a single text file works.
-#        
-#        Create one text test file on the server and make sure it's
-#        downloaded by the client during sync.
-#        """
-#
-#        os.mkdir(self.local_workspace)
-#        self.workspace_write_file('one.txt', 'Hello, world!\n')
-#        self.workspace_upload('one.txt')
-#
-#        os.mkdir(self.local)
-#        self.syncer.clone(self.local, self.folder)
-#
-#        self.assertTreesEqual(self.local, self.local_workspace)
+    def test_empty_clone(self):
+        """Check if cloning an empty folder works."""
+
+        os.mkdir(self.local)
+        self.local_write_file('dummy', '')
+        self.assertRaises(
+            pithossync.DirectoryNotEmptyError,
+            self.syncer.clone,
+            self.local,
+            self.folder
+        )
+        os.unlink(os.path.join(self.local, 'dummy'))
+        self.syncer.clone(self.local, self.folder)
+        # make sure the directory is still empty after cloning an empty
+        # server-side directory
+        os.mkdir(self.local_workspace)
+        self.assertTreesEqual(self.local, self.local_workspace)
+        # make sure the server-side directory is not affected by the clone operation
+        self.assertTrue(self.folder_empty(self.folder))
+ 
+    def test_clone_one_text(self):
+        """Check if cloning a folder containing a single text file works.
+        
+        Create one text test file on the server and make sure it's
+        downloaded by the client during sync.
+        """
+
+        os.mkdir(self.local_workspace)
+        self.workspace_write_file('one.txt', 'Hello, world!\n')
+        self.workspace_upload('one.txt')
+
+        os.mkdir(self.local)
+        self.syncer.clone(self.local, self.folder)
+
+        self.assertTreesEqual(self.local, self.local_workspace)
 
     def workspace_create_random(self, name, size):
         try:
@@ -143,14 +143,14 @@ class TestSync(unittest.TestCase):
         self.client.upload_object(self.folder + '/' + name, f)
         f.close()
 
-#    def test_clone_one_bin(self):
-#        """Check if cloning a folder with a single binary file works."""
-#        self.workspace_create_random('test.bin', 8)
-#        self.workspace_upload('test.bin')
-#
-#        os.mkdir(self.local)
-#        self.syncer.clone(self.local, self.folder)
-#        self.assertTreesEqual(self.local, self.local_workspace)
+    def test_clone_one_bin(self):
+        """Check if cloning a folder with a single binary file works."""
+        self.workspace_create_random('test.bin', 8)
+        self.workspace_upload('test.bin')
+
+        os.mkdir(self.local)
+        self.syncer.clone(self.local, self.folder)
+        self.assertTreesEqual(self.local, self.local_workspace)
 
 #    def test_clone_one_big(self):
 #        """Check if cloning a folder with a 100MB binary file works."""
@@ -193,18 +193,18 @@ class TestSync(unittest.TestCase):
             f.write(file)
             f.close()
 
-#    def test_clone_tree(self):
-#        """Create a tree of files and directories and check if it clones."""
-#        tree = ['red.file', 'green.file', 'blue.file',
-#                'foo/red.file', 'foo/green.file', 'foo/blue.file',
-#                'bar/quux/koko.txt', 'bar/quux/lala.txt', 'bar/quux/liruliru.txt']
-#        self.create_tree(tree)
-#        # TODO: also create the directories on the server
-#        for file in tree:
-#            self.workspace_upload(os.path.join(*file.split('/')))
-#        os.mkdir(self.local)
-#        self.syncer.clone(self.local, self.folder)
-#        self.assertTreesEqual(self.local, self.local_workspace)
+    def test_clone_tree(self):
+        """Create a tree of files and directories and check if it clones."""
+        tree = ['red.file', 'green.file', 'blue.file',
+                'foo/red.file', 'foo/green.file', 'foo/blue.file',
+                'bar/quux/koko.txt', 'bar/quux/lala.txt', 'bar/quux/liruliru.txt']
+        self.create_tree(tree)
+        # TODO: also create the directories on the server
+        for file in tree:
+            self.workspace_upload(os.path.join(*file.split('/')))
+        os.mkdir(self.local)
+        self.syncer.clone(self.local, self.folder)
+        self.assertTreesEqual(self.local, self.local_workspace)
 
     def test_push_one_created(self):
         os.mkdir(self.local)
@@ -277,6 +277,9 @@ class TestSync(unittest.TestCase):
 #        pass
 
 # TODO: assert that directory removals alone are pushed
+# TODO: assert that remote folder does not exists causes an error during clone
+# TODO: assert that local permission denied during clone fails correctly
+# TODO: modify the tests to correctly handle the .pithos meta directory
 
     def local_recursive_delete(self, folder):
         """rm -rf folder"""

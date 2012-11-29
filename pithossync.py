@@ -15,10 +15,12 @@ class WorkingCopy:
             f = open(path, 'wb+')
         except:
             print("Failed to write to local file '%s'." % path)
+            return
         try:
             self.syncer.client.download_object(remotepath, f)
         except ClientError:
             print("Failed to download %s." % remotepath)
+            return
         f.close()
         print("Downloaded remote file '%s' into %s (%i bytes)" % (remotepath, path, os.stat(path).st_size))
 
@@ -48,13 +50,14 @@ class WorkingCopy:
                         print("Created directory %s" % os.path.join(self.local, path_after_folder))
                     except OSError:
                         pass
-                components = path_after_folder.split('/')
-                try:
-                    os.makedirs(os.path.join(self.local, *components[:-1]))
-                    print("Created directory %s" % os.path.join(self.local, *components[:-1]))
-                except OSError:
-                    pass
-                self.download(file[len(name + '/'):])
+                else:
+                    components = path_after_folder.split('/')
+                    try:
+                        os.makedirs(os.path.join(self.local, *components[:-1]))
+                        print("Created directory %s" % os.path.join(self.local, *components[:-1]))
+                    except OSError:
+                        pass
+                    self.download(file[len(name + '/'):])
         print("Cloning successful.")
         print("Created %i local objects out of %i total objects in container." % (count_objects, len(obj_list)))
 
@@ -65,7 +68,17 @@ class WorkingCopy:
             if obj['name'][0:len(name + '/')] == name + '/':
                 self.syncer.client.object_delete(obj['name'])
                 print("Deleted remote object '%s'" % (obj['name']))
-        print("Emptied remote directory '%s'" % (name))
+        print("Emptied remote directory '%s'" % name)
+
+    def local_recursive_delete(self, folder):
+        """rm -rf folder"""
+        if os.path.exists(folder):
+            for root, dirs, files in os.walk(folder, topdown=False):
+                for name in files:
+                    os.remove(os.path.join(root, name))
+                for name in dirs:
+                    os.rmdir(os.path.join(root, name))
+        print("Emptied local directory '%s'" % folder)
 
     def __init__(self, syncer, local, folder):
         self.syncer = syncer
@@ -73,9 +86,9 @@ class WorkingCopy:
         self.folder = folder
 
     def clone(self):
-        print("Using account '%s' on Pithos server %s." %
+        print("Using account '%s' on Pithos server '%s'." %
               (self.syncer.account, self.syncer.url))
-        print("Cloning folder %s from remote container %s into local directory '%s'..." %
+        print("Cloning folder '%s' from remote container '%s' into local directory '%s'..." %
               (self.folder, self.syncer.container, self.local))
         self.recursive_download(self.folder)
 
@@ -92,7 +105,8 @@ class WorkingCopy:
                 self.remote_mkdir(path_after_folder)
 
     def pull(self):
-        pass
+        self.local_recursive_delete(self.local)
+        self.clone()
 
 class Syncer:
     def __init__(self, url, token, account, container):

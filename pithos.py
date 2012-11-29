@@ -25,6 +25,9 @@ else:
         if command == 'push':
             working_copy = syncer.workingCopy(local, remote)
             working_copy.push()
+        if command == 'pull':
+            working_copy = syncer.workingCopy(local, remote)
+            working_copy.pull()
     except pithossync.DirectoryNotEmptyError:
         print("The directory is not empty.")
     except pithossync.FileNotFoundError:
