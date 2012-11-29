@@ -10,7 +10,7 @@ class FileNotFoundError(Exception):
 class WorkingCopy:
     def download(self, name):
         remotepath = self.folder + '/' + name
-        path = os.path.join(self.local, name)
+        path = os.path.join(self.local, os.path.join(*name.split('/')))
         try:
             f = open(path, 'wb+')
         except:
@@ -44,7 +44,7 @@ class WorkingCopy:
                 count_objects += 1
                 if type == 'application/directory' or type == 'application/folder':
                     try:
-                        os.makedirs(os.path.join(self.local, path_after_folder))
+                        os.makedirs(os.path.join(self.local, os.path.join(*path_after_folder.split('/'))))
                         print("Created directory %s" % os.path.join(self.local, path_after_folder))
                     except OSError:
                         pass
