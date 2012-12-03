@@ -280,6 +280,7 @@ class TestSync(unittest.TestCase):
 # TODO: assert that remote folder does not exists causes an error during clone
 # TODO: assert that local permission denied during clone fails correctly
 # TODO: modify the tests to correctly handle the .pithos meta directory
+# TODO: test that using local directories that end both in a '/' and not in one works correctly
 
     def local_recursive_delete(self, folder):
         """rm -rf folder"""
