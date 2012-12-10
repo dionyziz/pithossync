@@ -23,10 +23,10 @@ else:
         if command == 'clone':
             syncer.clone(local, remote)
         if command == 'push':
-            working_copy = syncer.workingCopy(local, remote)
+            working_copy = syncer.working_copy(local, remote)
             working_copy.push()
         if command == 'pull':
-            working_copy = syncer.workingCopy(local, remote)
+            working_copy = syncer.working_copy(local, remote)
             working_copy.pull()
     except pithossync.DirectoryNotEmptyError:
         print("The directory is not empty.")

@@ -1,11 +1,14 @@
 from kamaki.clients.pithos import PithosClient, ClientError
 import os
 
+
 class DirectoryNotEmptyError(Exception):
     pass
 
+
 class FileNotFoundError(Exception):
     pass
+
 
 class WorkingCopy:
     def download(self, name):
@@ -22,18 +25,23 @@ class WorkingCopy:
             print("Failed to download %s." % remotepath)
             return
         f.close()
-        print("Downloaded remote file '%s' into %s (%i bytes)" % (remotepath, path, os.stat(path).st_size))
+        print("Downloaded remote file '%s' into %s (%i bytes)" %
+              (remotepath, path, os.stat(path).st_size))
 
     def upload(self, destination, source):
         f = open(source, 'r')
         self.syncer.client.upload_object(self.folder + '/' + destination, f)
         f.close()
-        print("Uploaded local file '%s' (%i bytes)" % (source, os.stat(source).st_size))
+        print("Uploaded local file '%s' (%i bytes)" %
+              (source, os.stat(source).st_size))
 
     def remote_mkdir(self, name):
         dir = self.folder + '/' + name
         self.syncer.client.create_directory(dir)
         print("Created remote directory '%s'." % dir)
+
+    def is_folder(self, type):
+        return type in ['application/directory', 'application/folder']
 
     def recursive_download(self, name):
         obj_list = self.syncer.client.list_objects()
@@ -44,22 +52,27 @@ class WorkingCopy:
             if file[0:len(name + '/')] == name + '/':
                 path_after_folder = file[len(name + '/'):]
                 count_objects += 1
-                if type == 'application/directory' or type == 'application/folder':
+                if self.is_folder(type):
                     try:
-                        os.makedirs(os.path.join(self.local, os.path.join(*path_after_folder.split('/'))))
-                        print("Created directory %s" % os.path.join(self.local, path_after_folder))
+                        components = path_after_folder.split('/')
+                        path_to_create = os.path.join(*components)
+                        os.makedirs(os.path.join(self.local, path_to_create))
+                        print("Created directory %s"
+                              % os.path.join(self.local, path_after_folder))
                     except OSError:
                         pass
                 else:
                     components = path_after_folder.split('/')
                     try:
                         os.makedirs(os.path.join(self.local, *components[:-1]))
-                        print("Created directory %s" % os.path.join(self.local, *components[:-1]))
+                        print("Created directory %s"
+                              % os.path.join(self.local, *components[:-1]))
                     except OSError:
                         pass
                     self.download(file[len(name + '/'):])
         print("Cloning successful.")
-        print("Created %i local objects out of %i total objects in container." % (count_objects, len(obj_list)))
+        print("Created %i local objects out of %i total objects in container."
+              % (count_objects, len(obj_list)))
 
     def remote_recursive_delete_contents(self, name):
         obj_list = self.syncer.client.list_objects()
@@ -88,25 +101,30 @@ class WorkingCopy:
     def clone(self):
         print("Using account '%s' on Pithos server '%s'." %
               (self.syncer.account, self.syncer.url))
-        print("Cloning folder '%s' from remote container '%s' into local directory '%s'..." %
+        print("Cloning folder '%s' from remote container '%s' "
+              "into local directory '%s'..." %
               (self.folder, self.syncer.container, self.local))
         self.recursive_download(self.folder)
+
+    def local_to_remote_path(self, root, name):
+        path = os.path.join(root, name)
+        native_path = path[len(self.local + os.sep):]
+        remote_path = native_path.replace(os.sep, '/')
+        return remote_path
 
     def push(self):
         self.remote_recursive_delete_contents(self.folder)
         for root, dirs, files in os.walk(self.local, topdown=False):
             for name in files:
-                path = os.path.join(root, name)
-                path_after_folder = path[len(self.local + os.sep):].replace(os.sep, '/')
-                self.upload(path_after_folder, os.path.join(root, name))
+                self.upload(self.local_to_remote_path(root, name),
+                            os.path.join(root, name))
             for name in dirs:
-                path = os.path.join(root, name)
-                path_after_folder = path[len(self.local + os.sep):].replace(os.sep, '/')
-                self.remote_mkdir(path_after_folder)
+                self.remote_mkdir(self.local_to_remote_path(root, name))
 
     def pull(self):
         self.local_recursive_delete(self.local)
         self.clone()
+
 
 class Syncer:
     def __init__(self, url, token, account, container):
@@ -114,7 +132,8 @@ class Syncer:
         self.token = token
         self.account = account
         self.container = container
-        self.client = PithosClient(self.url, self.token, self.account, self.container)
+        self.client = PithosClient(self.url, self.token,
+                                   self.account, self.container)
 
     def clone(self, local, folder):
         try:
@@ -122,11 +141,12 @@ class Syncer:
                 raise DirectoryNotEmptyError()
         except OSError:
             raise FileNotFoundError()
-        workingCopy = WorkingCopy(self, local, folder)
-        workingCopy.clone()
-        return workingCopy
+        # except TypeError: # if local is not a string
+        working_copy = WorkingCopy(self, local, folder)
+        working_copy.clone()
+        return working_copy
 
-    def workingCopy(self, local, folder):
+    def working_copy(self, local, folder):
         # TODO: use meta-data to automatically determine remote from local
-        workingCopy = WorkingCopy(self, local, folder)
-        return workingCopy
+        working_copy = WorkingCopy(self, local, folder)
+        return working_copy
