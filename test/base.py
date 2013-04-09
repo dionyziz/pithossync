@@ -61,7 +61,10 @@ class TestPithosSyncBase(unittest.TestCase):
             return True
 
         def recursive_delete(self, name):
+            print("Listing objects")
             obj_list = self.client.list_objects()
+            print("Done listing")
+
             # delete all the folders' contents
             for obj in obj_list:
                 if obj['name'][0:len(name + '/')] == name + '/':

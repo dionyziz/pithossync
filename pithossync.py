@@ -11,6 +11,8 @@ class FileNotFoundError(Exception):
 
 
 class WorkingCopy:
+    """Represents a local copy of a directory cloned from the Pithos+ server."""
+
     def download(self, name):
         remotepath = self.folder + '/' + name
         path = os.path.join(self.local, os.path.join(*name.split('/')))
@@ -99,6 +101,8 @@ class WorkingCopy:
         self.folder = folder
 
     def clone(self):
+        """Builds a new working copy by cloning a folder from a remote container."""
+
         print("Using account '%s' on Pithos server '%s'." %
               (self.syncer.account, self.syncer.url))
         print("Cloning folder '%s' from remote container '%s' "
