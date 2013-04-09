@@ -2,9 +2,9 @@ import pithossync
 from optparse import OptionParser
 
 parser = OptionParser()
-parser.add_option('-u', '--url', dest='url', default='https://pithos.okeanos.grnet.gr/v1',
+parser.add_option('-u', '--url', dest='url', default='https://pithos.okeanos.io/v1',
                   help='Specify the URL of the running pithos service')
-parser.add_option('-a', '--account', dest='account', default='dionyziz@gmail.com',
+parser.add_option('-a', '--account', dest='account', default='d8e6f8bb-619b-4ce6-8903-89fabdca024d',
                   help='Sets the e-mail address of the account with which you want to access pithos')
 parser.add_option('-t', '--token', dest='token',
                   help='Provides the astakos authentication token to use with pithos')
