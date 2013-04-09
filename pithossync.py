@@ -109,6 +109,12 @@ class WorkingCopy:
               "into local directory '%s'..." %
               (self.folder, self.syncer.container, self.local))
         self.recursive_download(self.folder)
+        self.create_meta_file(self.folder)
+
+    def create_meta_file(self):
+        f = open('%s/.pithos' % self.local, 'w')
+        f.write(self.folder)
+        f.close()
 
     def local_to_remote_path(self, root, name):
         path = os.path.join(root, name)
