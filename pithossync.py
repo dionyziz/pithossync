@@ -140,7 +140,11 @@ class Syncer:
             if not os.listdir(local) == []:
                 raise DirectoryNotEmptyError()
         except OSError:
-            raise FileNotFoundError()
+            try:
+                print('Making local directory "%s"' % local)
+                os.mkdir(local)
+            except OSError:
+                raise FileNotFoundError()
         # except TypeError: # if local is not a string
         working_copy = WorkingCopy(self, local, folder)
         working_copy.clone()
