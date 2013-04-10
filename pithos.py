@@ -1,34 +1,81 @@
-import pithossync
+#!/home/dionyziz/env/bin/python
+import sys
+import os
+from ConfigParser import ConfigParser
 from optparse import OptionParser
 
+import pithossync
+
+
+defaults = {
+    'url': '',
+    'account': '',
+    'token': '',
+    'container': ''
+}
+
+config = ConfigParser()
+try:
+    config.read(os.path.expanduser('~/.pithosconfig'))
+    for key in defaults.keys():
+        try:
+            defaults[key] = config.get('pithos', key)
+        except:
+            pass
+except:
+    pass
+
 parser = OptionParser()
-parser.add_option('-u', '--url', dest='url', default='https://pithos.okeanos.io/v1',
+parser.add_option('-u', '--url', dest='url', default=defaults['url'],
                   help='Specify the URL of the running pithos service')
-parser.add_option('-a', '--account', dest='account', default='d8e6f8bb-619b-4ce6-8903-89fabdca024d',
+parser.add_option('-a', '--account', dest='account', default=defaults['account'],
                   help='Sets the e-mail address of the account with which you want to access pithos')
-parser.add_option('-t', '--token', dest='token',
+parser.add_option('-t', '--token', dest='token', default=defaults['token'],
                   help='Provides the astakos authentication token to use with pithos')
-parser.add_option('-c', '--container', dest='container', default='pithos',
+parser.add_option('-c', '--container', dest='container', default=defaults['container'],
                   help='Sets the desired pithos container')
 (options, args) = parser.parse_args()
 
-if len(args) != 3:
-    print('Syntax: pithos [OPTIONS] command remote local')
+def syntax():
+    print('Syntax: pithos [OPTIONS] clone remote local')
+    print('        pithos [OPTIONS] pull local')
+    print('        pithos [OPTIONS] push local')
+
+if len(args) < 1:
+    syntax()
+    sys.exit(0)
 else:
     command = args[0]
-    remote = args[1]
-    local = args[2]
     syncer = pithossync.Syncer(options.url, options.token, options.account, options.container)
     try:
         if command == 'clone':
+            try:
+                remote = args[1]
+            except:
+                syntax()
+                sys.exit(0)
+            try:
+                local = args[2]
+            except:
+                local = os.path.split(remote)[1]
             syncer.clone(local, remote)
         if command == 'push':
-            working_copy = syncer.working_copy(local, remote)
+            try:
+                local = args[1]
+            except:
+                local = '.'
+            working_copy = syncer.working_copy(local)
             working_copy.push()
         if command == 'pull':
-            working_copy = syncer.working_copy(local, remote)
+            try:
+                local = args[1]
+            except:
+                local = '.'
+            working_copy = syncer.working_copy(local)
             working_copy.pull()
     except pithossync.DirectoryNotEmptyError:
-        print("The directory is not empty.")
+        print('Directory "%s" is not empty.' % local)
     except pithossync.FileNotFoundError:
-        print("The directory does not exist.")
+        print('Directory "%s" does not exist.' % local)
+    except pithossync.InvalidWorkingCopy:
+        print('Directory "%s" is not a working copy.' % local)

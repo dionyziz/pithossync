@@ -1,5 +1,6 @@
 from kamaki.clients.pithos import PithosClient, ClientError
 import os
+import ConfigParser
 
 
 class DirectoryNotEmptyError(Exception):
@@ -7,6 +8,9 @@ class DirectoryNotEmptyError(Exception):
 
 
 class FileNotFoundError(Exception):
+    pass
+
+class InvalidWorkingCopy(Exception):
     pass
 
 
@@ -95,10 +99,13 @@ class WorkingCopy:
                     os.rmdir(os.path.join(root, name))
         print("Emptied local directory '%s'" % folder)
 
-    def __init__(self, syncer, local, folder):
+    def __init__(self, syncer, local, folder = None):
         self.syncer = syncer
         self.local = local
-        self.folder = folder
+        if folder is None:
+            self.read_meta_file()
+        else:
+            self.folder = folder
 
     def clone(self):
         """Builds a new working copy by cloning a folder from a remote container."""
@@ -109,12 +116,22 @@ class WorkingCopy:
               "into local directory '%s'..." %
               (self.folder, self.syncer.container, self.local))
         self.recursive_download(self.folder)
-        self.create_meta_file(self.folder)
+        self.write_meta_file()
 
-    def create_meta_file(self):
-        f = open('%s/.pithos' % self.local, 'w')
-        f.write(self.folder)
-        f.close()
+    def write_meta_file(self):
+        config = ConfigParser.ConfigParser()
+        config.add_section('pithos')
+        config.set('pithos', 'remote', self.folder)
+        with open('%s/.pithos' % self.local, 'w') as f:
+            config.write(f)
+
+    def read_meta_file(self):
+        config = ConfigParser.ConfigParser()
+        try:
+            config.read(os.path.join(self.local, '.pithos'))
+        except:
+            raise InvalidWorkingCopy
+        self.folder = config.get('pithos', 'remote')
 
     def local_to_remote_path(self, root, name):
         path = os.path.join(root, name)
@@ -126,6 +143,8 @@ class WorkingCopy:
         self.remote_recursive_delete_contents(self.folder)
         for root, dirs, files in os.walk(self.local, topdown=False):
             for name in files:
+                if root == self.local and name == '.pithos':
+                    continue
                 self.upload(self.local_to_remote_path(root, name),
                             os.path.join(root, name))
             for name in dirs:
@@ -160,7 +179,6 @@ class Syncer:
         working_copy.clone()
         return working_copy
 
-    def working_copy(self, local, folder):
-        # TODO: use meta-data to automatically determine remote from local
-        working_copy = WorkingCopy(self, local, folder)
+    def working_copy(self, local):
+        working_copy = WorkingCopy(self, local)
         return working_copy
