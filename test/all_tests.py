@@ -1,6 +1,6 @@
 import glob
 import unittest
-
+import pithossync
 
 def create_test_suite():
     test_file_strings = glob.glob('test/test_*.py')

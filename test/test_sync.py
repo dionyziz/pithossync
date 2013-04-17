@@ -22,7 +22,7 @@ class TestSync(TestPithosSyncBase):
             print('ASTAKOS_TOKEN="your_token_here" python runtests.py\n')
             sys.exit(0)
 
-        self.account = 'd8e6f8bb-619b-4ce6-8903-89fabdca024d' # 'dionyziz@gmail.com'
+        self.account = 'd8e6f8bb-619b-4ce6-8903-89fabdca024d'
         self.container = 'pithos'
         self.syncer = pithossync.Syncer(self.url, self.token,
                                         self.account, self.container)
