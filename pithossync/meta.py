@@ -4,10 +4,17 @@ import pickle
 class LocalMetaFile:
     LOCAL_META_FILENAME = '.pithos'
 
+    pickled_keys = ['remote_server',
+                    'remote_container',
+                    'remote_dir',
+                    'file_info',
+                    'empty_lock_file_hash']
+
     remote_server = None
     remote_container = None
     remote_dir = None
     file_info = None
+    empty_lock_file_hash = None
 
     local_dir = None
     meta_file_name = None
@@ -21,12 +28,10 @@ class LocalMetaFile:
 
     def save(self):
         # raises IOError
-        data = {
-            'remote_server': self.remote_server,
-            'remote_container': self.remote_container,
-            'remote_dir': self.remote_dir,
-            'file_info': self.file_info
-        }
+        data = {}
+
+        for key in self.pickled_keys:
+            data[key] = getattr(self, key)
 
         # TODO: Do the pickle write using os.O_EXCL | os.O_CREAT
         with open(self.meta_file_name, 'wb') as f:
@@ -36,10 +41,11 @@ class LocalMetaFile:
         with open(self.meta_file_name, 'rb') as f:
             data = pickle.load(f)
 
-        self.remote_dir = data['remote_dir']
-        self.remote_container = data['remote_container']
-        self.remote_server = data['remote_server']
-        self.file_info = data['file_info']
+        for (key, value) in data.items():
+            if key not in self.pickledkeys:
+                # meta file is broken
+                raise ValueError
+            setattr(self, key, value)
 
     def get_file_version(self, path):
         return self.file_info[path].version

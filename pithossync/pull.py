@@ -32,10 +32,10 @@ def pull(working_copy):
             download_file(object.name, object.version)
 
     def delete_files():
-        raise NotImplemented
+        raise NotImplementedError
 
     # no lock needed for pull
-    file_list = list_files()
+    file_list = list_files(working_copy.folder + '/')
     if file_list is None:
         # fast pull
         return
