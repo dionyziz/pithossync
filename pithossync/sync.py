@@ -1,0 +1,3 @@
+def sync():
+    pull()
+    push()
