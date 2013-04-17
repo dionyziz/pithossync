@@ -32,12 +32,14 @@ class TestSync(TestPithosSyncBase):
 
         # the local folder used by the syncing client
         local_path = 'localmirror'
+        local_path_2 = 'localmirror2'
+
         # the local folder used by the tests, unavailable to the syncing client
         workspace_path = 'localworkspace'
         # the name of the remote folder within the pithos container
         remote_path = 'sync-test'
 
-        super(TestSync, self).setUp(workspace_path, local_path, remote_path)
+        super(TestSync, self).setUp(workspace_path, local_path, local_path_2, remote_path)
 
         # clean up from previous test runs that may have crashed
         self.local.delete()
@@ -76,6 +78,7 @@ class TestSync(TestPithosSyncBase):
         # make sure the server-side directory is not affected
         # by the clone operation
         self.assertTrue(self.remote.folder_empty(self.remote.path))
+
     def test_clone_one_text(self):
         """Check if cloning a folder containing a single text file works.
 
@@ -179,21 +182,23 @@ class TestSync(TestPithosSyncBase):
         # make sure the modified file has been synchronized
         self.assertTreesMatch()
 
-#    def test_push_later(self):
-#        os.mkdir(self.workspace.path)
-#        os.mkdir(self.local.path)
-#
-#        self.syncer.clone(self.local.path, self.remote.path)
-#
-#        syncer2 = pithossync.Syncer(self.url, self.token,
-#                                    self.account, self.container)
-#        working_copy = syncer2.working_copy(self.local.path)
-#
-#        self.local.write_file('one.txt', 'Hello, world!\n')
-#        working_copy.push()
-#
-#        self.assertTreesMatch()
-#
+    def test_push_later(self):
+        os.mkdir(self.workspace.path)
+        os.mkdir(self.local.path)
+
+        self.syncer.clone(self.local.path, self.remote.path)
+
+        syncer2 = pithossync.Syncer(self.url, self.token,
+                                    self.account, self.container)
+        working_copy = syncer2.working_copy(self.local.path)
+
+        self.local.write_file('one.txt', 'Hello, world!\n')
+        working_copy.push()
+
+        self.syncer.clone(self.local2.path, self.remote.path)
+
+        self.assertWorkingCopiesMatch()
+
     def test_pull_one_created(self):
         os.mkdir(self.workspace.path)
         os.mkdir(self.local.path)
@@ -220,16 +225,63 @@ class TestSync(TestPithosSyncBase):
         working_copy.pull()
 
         self.assertTreesMatch()
-#    def test_sync(self):
-#        pass
 
-# TODO: assert that directory removals alone are pushed
+    def test_push_rmdir(self):
+        tree = ['foo/',
+                'foo/biz/',
+                'foo/biz/baz/',
+                'bar/',
+                'bar/quux/']
+
+        working_copy = self.syncer.clone(self.local.path, self.remote.path)
+        self.local.create_tree(tree)
+        working_copy.push()
+
+        working_copy2 = self.syncer.clone(self.local2.path, self.remote.path)
+
+        os.rmdir(os.path.join(self.local.path, 'foo', 'biz', 'baz'))
+        os.rmdir(os.path.join(self.local.path, 'foo', 'biz'))
+        os.rmdir(os.path.join(self.local.path, 'foo'))
+
+        working_copy.push()
+        working_copy2.pull()
+
+        self.assertWorkingCopiesMatch()
+
+    def test_push_rm(self):
+        tree = ['foo/',
+                'foo/biz/',
+                'foo/biz/baz',
+                'foo/biz/koko',
+                'foo/biz/liruliru/',
+                'foo/lala/',
+                'bar/',
+                'bar/quux']
+
+        working_copy = self.syncer.clone(self.local.path, self.remote.path)
+        self.local.create_tree(tree)
+        working_copy.push()
+
+        os.rmdir(os.path.join(self.local.path, 'foo', 'lala'))
+        os.remove(os.path.join(self.local.path, 'foo', 'biz', 'baz'))
+
+        working_copy2 = self.syncer.clone(self.local2.path, self.remote.path)
+
+        working_copy.push()
+        working_copy2.pull()
+
+        self.assertWorkingCopiesMatch()
+
 # TODO: assert that remote folder does not exists causes an error during clone
 # TODO: assert that local permission denied during clone fails correctly
-# TODO: modify the tests to correctly handle the .pithos meta directory
 # TODO: test that using local directories that end both in a '/' and not in one
 #       works correctly
 # TODO: create a specific Access Denied exception and throw it by parsing kamaki errors correctly
+# TODO: test_pull_rm
+# TODO: test_push_create
+# TODO: test_pull_create
+# TODO: test replace file with folder with same name and vice versa
+# TODO: test creation/modification/deletion race conditions (how?)
 
     def tearDown(self):
         """Clean up all temporary directories on the server and on the client.
@@ -239,5 +291,6 @@ class TestSync(TestPithosSyncBase):
         """
         logging.debug('test_sync test suite cleaning up')
         self.local.delete()
+        self.local2.delete()
         self.workspace.delete()
         self.remote.recursive_delete(self.remote.path)

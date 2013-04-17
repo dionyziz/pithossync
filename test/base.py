@@ -103,29 +103,7 @@ class TestPithosSyncBase(unittest.TestCase):
             self.base.write_file(os.path.join(self.path, name), contents)
 
         def create_tree(self, file_list):
-            """Creates a local tree of files for testing.
-
-            file_list is a list of files in the following format:
-            It is a list of strings that describe file and folder paths.
-            All use forward slashes UNIX-style to separate files and folders.
-            Forward-slashes are then replaced to follow the host OS.
-            The tree may contain empty folders.
-            Each file written is a text file containing a single line with its
-            own filename.
-            """
-
-            self.make()
-            for file in file_list:
-                if file[-1] == '/':
-                    components = file[:-1].split('/')
-                    path = os.path.join(self.path, *components)
-                    os.mkdir(path)
-                else:
-                    components = file.split('/')
-                    filename = os.path.join(self.path, *components)
-                    f = open(filename, 'w')
-                    f.write(file)
-                    f.close()
+            self.base.create_tree(self.path, file_list)
 
         def download(self, name):
             path = os.path.join(self.path, *name.split('/'))
@@ -152,6 +130,9 @@ class TestPithosSyncBase(unittest.TestCase):
             self.base = base
             self.path = local_path
 
+        def create_tree(self, file_list):
+            self.base.create_tree(self.path, file_list)
+
         def write_file(self, name, contents):
             self.base.write_file(os.path.join(self.path, name), contents)
 
@@ -164,15 +145,19 @@ class TestPithosSyncBase(unittest.TestCase):
         def exists(self):
             return os.path.exists(self.path)
 
-    def setUp(self, workspace_path, local_path, remote_path):
+    def setUp(self, workspace_path, local_path, local_path_2, remote_path):
         self.workspace = self.Workspace(self, workspace_path)
         self.local = self.Local(self, local_path)
+        self.local2 = self.Local(self, local_path_2)
         self.remote = self.Remote(self, remote_path)
 
     def assertTreesEqual(self, a, b):
-        comparator = filecmp.dircmp(a, b)
+        comparator = filecmp.dircmp(a, b, ['.pithos'])
         self.assertEqual(len(comparator.left_only), 0)
         self.assertEqual(len(comparator.right_only), 0)
+
+    def assertWorkingCopiesMatch(self):
+        self.assertTreesEqual(self.local.path, self.local2.path)
 
     def assertTreesMatch(self):
         self.assertTreesEqual(self.local.path, self.workspace.path)
@@ -181,6 +166,31 @@ class TestPithosSyncBase(unittest.TestCase):
         f = open(name, 'w')
         f.write(contents)
         f.close()
+
+    def create_tree(self, root, file_list):
+        """Creates a local tree of files for testing.
+
+        file_list is a list of files in the following format:
+        It is a list of strings that describe file and folder paths.
+        All use forward slashes UNIX-style to separate files and folders.
+        Forward-slashes are then replaced to follow the host OS.
+        The tree may contain empty folders.
+        Each file written is a text file containing a single line with its
+        own filename.
+        """
+
+        self.optionally_mkdir(root)
+        for file in file_list:
+            if file[-1] == '/':
+                components = file[:-1].split('/')
+                path = os.path.join(root, *components)
+                os.mkdir(path)
+            else:
+                components = file.split('/')
+                filename = os.path.join(root, *components)
+                f = open(filename, 'w')
+                f.write(file)
+                f.close()
 
     def recursive_delete(self, folder):
         """rm -rf folder"""

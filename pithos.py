@@ -34,9 +34,11 @@ parser.add_option('-t', '--token', dest='token', default=defaults['token'],
                   help='Provides the astakos authentication token to use with pithos')
 parser.add_option('-c', '--container', dest='container', default=defaults['container'],
                   help='Sets the desired pithos container')
+# TODO: Switch to argparse
 (options, args) = parser.parse_args()
 
 def syntax():
+    # TODO: Syntax should be automatically generated
     print('Syntax: pithos [OPTIONS] clone remote local')
     print('        pithos [OPTIONS] pull local')
     print('        pithos [OPTIONS] push local')
@@ -77,5 +79,7 @@ else:
         print('Directory "%s" is not empty.' % local)
     except pithossync.FileNotFoundError:
         print('Directory "%s" does not exist.' % local)
-    except pithossync.InvalidWorkingCopy:
+    except pithossync.InvalidWorkingCopyError:
         print('Directory "%s" is not a working copy.' % local)
+    except OSError:
+        print('Directory "%s" could not be created. Check permissions?')
