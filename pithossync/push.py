@@ -6,8 +6,8 @@ def push():
     def get_files_to_be_uploaded(local_file_list, remote_file_list):
         ret = []
 
-        for file in local_files:
-            if not version match:
+        for (name, file) in local_file_list.items():
+            if file.version != remote_file_list[name].version:
                 raise Conflict
             if not file.dirty:
                 continue
@@ -15,13 +15,13 @@ def push():
 
         return ret
 
-    def get_files_to_be_deleted(remote_files):
+    def get_files_to_be_deleted(local_file_list, remote_file_list):
         ret = []
 
-        for file in remote_files:
+        for (name, file) in remote_file_list.items():
             if file is local:
                 continue
-            if not version match:
+            if file.version != local_file_list[name].version:
                 raise Conflict
             ret.append(file)
 

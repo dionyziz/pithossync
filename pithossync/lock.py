@@ -7,6 +7,10 @@ class TimeoutError(Exception):
     pass
 
 
+class LockViolationError(Exception):
+    pass
+
+
 # TODO: Add support for multiple locks at the same time
 class Lock:
     SLEEP_BEFORE_RETRY = 0.5 # seconds
@@ -29,15 +33,21 @@ class Lock:
         self.obtain()
         return self
 
+    @staticmethod
+    def exists_in(object_list):
+        return Lock.REMOTE_META_FILE in object_list
+
     def put(self):
         contents = 'Locked: Yes\nClient: %s\nAutoincrement: %i' % (self.client_id, self.autoincrement)
 
         # TODO: put data directly to Pithos when kamaki supports this, without writing it to a file first
-        (fh, name) tempfile.mkstemp()
+        (fh, name) = tempfile.mkstemp()
         file = os.fdopen(fh, 'w')
-        # TODO: if not modified since etc.
-        self.working_copy.syncer.client.upload_object(working_copy, file, ...)
+        file.write(contents)
         file.close()
+
+        # TODO: if not modified since etc.
+        self.working_copy.syncer.client.upload_object(working_copy, file)
         os.unlink(name)
 
     def init(self):

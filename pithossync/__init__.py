@@ -5,5 +5,3 @@ from push import *
 from pull import *
 from init import *
 from clone import *
-
-print("Imported")

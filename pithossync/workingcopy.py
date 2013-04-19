@@ -5,6 +5,11 @@ import shutil
 from pull import pull
 
 
+# raised when trying to push or pull on a local directory which does not have a metafile
+class InvalidWorkingCopyError(Exception):
+    pass
+
+
 class WorkingCopy:
     """Represents a local copy of a directory cloned from the Pithos+ server."""
 
@@ -67,6 +72,7 @@ class WorkingCopy:
     def __init__(self, syncer, local, folder = None):
         self.syncer = syncer
         self.local = local
+
         if folder is None:
             self.read_meta_file()
         else:
@@ -74,12 +80,15 @@ class WorkingCopy:
 
     def clone(self):
         """Builds a new working copy by cloning a folder from a remote container."""
+
+        # TODO: Write local meta file
         pull(self)
 
     def local_to_remote_path(self, root, name):
         path = os.path.join(root, name)
         native_path = path[len(self.local + os.sep):]
         remote_path = native_path.replace(os.sep, '/')
+
         return remote_path
 
     def list_objects_of_interest(self):
@@ -90,7 +99,9 @@ class WorkingCopy:
         response = self.syncer.client.container_get(prefix=self.folder, if_modified_since=if_modified_since)
 
         if response.status == self.HTTP_NOT_MODIFIED:
-            raise NotModified
+            return {
+                'modified': False
+            }
 
         obj_list = response.json
         found = False
@@ -103,7 +114,11 @@ class WorkingCopy:
             ret.append(obj)
         if not found:
             raise FileNotFoundError
-        return ret
+
+        return {
+            'modified': True,
+            'list': ret
+        }
 
     def push(self):
         # self.remote_recursive_delete_contents(self.folder)
@@ -145,21 +160,26 @@ class WorkingCopy:
             self.syncer.client.object_delete(self.folder + '/' + file)
         print("Push successful.")
 
-    def pull(self):
+    def list_local_files(self):
         client_side_files = {}
         client_side_folders = {}
 
         # TODO: Push from the server to the client, or keep dirty state on the server
-        # TODO: Meta file name should be a constant
         for root, dirs, files in os.walk(self.local, topdown=False):
             for name in files:
-                if root == self.local and name == '.pithos':
+                if root == self.local and pithossync.LocalMetaFile.is_meta_file(name):
                     continue
                 client_side_files[self.local_to_remote_path(root, name)] = True
 
             for name in dirs:
                 client_side_folders[self.local_to_remote_path(root, name)] = True
 
+        return {
+            'files': client_side_files,
+            'folders': client_side_folders
+        }
+
+    def pull(self):
         obj_list = self.list_objects_of_interest()
 
         constant_part = self.folder + '/'

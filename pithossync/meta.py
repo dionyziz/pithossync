@@ -19,6 +19,10 @@ class LocalMetaFile:
     local_dir = None
     meta_file_name = None
 
+    @classmethod
+    def is_meta_file(name):
+        return LocalMetaFile.LOCAL_META_FILENAME == name
+
     def __init__(self, local_dir):
         self.local_dir = local_dir
         self.meta_file_name = os.path.join(self.local_dir, self.LOCAL_META_FILENAME)
@@ -47,10 +51,10 @@ class LocalMetaFile:
                 raise ValueError
             setattr(self, key, value)
 
-    def get_file_version(self, path):
+    def get_object_version(self, path):
         return self.file_info[path].version
 
-    def set_file_version(self, path, version):
+    def set_object_version(self, path, version):
         if path not in self.file_info:
             self.file_info[path] = {}
         self.file_info[path].version = version
@@ -61,4 +65,20 @@ class LocalMetaFile:
     def set_file_modified(self, path, date):
         if path not in self.file_info:
             self.file_info[path] = {}
-        self.file_info[path].modified= date
+        self.file_info[path].modified = date
+
+    def is_object_folder(self, path):
+        return self.file_info[path].folder
+    
+    def is_object_file(self, path):
+        return not self.file_info[path].folder
+
+    def mark_object_as_folder(self, path):
+        if path not in self.file_info:
+            self.file_info[path] = {}
+        self.file_info[path].folder = True
+
+    def mark_object_as_file(self, path):
+        if path not in self.file_info:
+            self.file_info[path] = {}
+        self.file_info[path].folder = False
