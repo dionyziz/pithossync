@@ -3,6 +3,8 @@ import os
 import ConfigParser
 import shutil
 from pull import pull
+import meta
+import lock
 
 
 # raised when trying to push or pull on a local directory which does not have a metafile
@@ -18,7 +20,7 @@ class WorkingCopy:
     def destroy(self):
         self.delete_meta_file()
 
-    def download(self, name):
+    def download(self, name, version):
         remotepath = self.folder + '/' + name
         path = os.path.join(self.local, os.path.join(*name.split('/')))
         try:
@@ -72,9 +74,11 @@ class WorkingCopy:
     def __init__(self, syncer, local, folder = None):
         self.syncer = syncer
         self.local = local
+        self.meta_file = meta.LocalMetaFile(self.local)
+        self.lock = lock.Lock(self)
 
         if folder is None:
-            self.read_meta_file()
+            self.folder = self.meta_file.remote_dir
         else:
             self.folder = folder
 
@@ -92,7 +96,7 @@ class WorkingCopy:
         return remote_path
 
     def list_objects_of_interest(self):
-        ret = []
+        ret = {}
 
         # TODO: Use meta-file last pull date for fast pull
         if_modified_since = 'Thu, 01 Jan 1970 00:00:00 GMT'
@@ -111,7 +115,7 @@ class WorkingCopy:
                 continue
             file = obj['name'][len(self.folder + '/'):]
             type = obj['content_type']
-            ret.append(obj)
+            ret[obj['name']] = obj
         if not found:
             raise FileNotFoundError
 
@@ -160,14 +164,14 @@ class WorkingCopy:
             self.syncer.client.object_delete(self.folder + '/' + file)
         print("Push successful.")
 
-    def list_local_files(self):
+    def list_local_objects(self):
         client_side_files = {}
         client_side_folders = {}
 
         # TODO: Push from the server to the client, or keep dirty state on the server
         for root, dirs, files in os.walk(self.local, topdown=False):
             for name in files:
-                if root == self.local and pithossync.LocalMetaFile.is_meta_file(name):
+                if root == self.local and meta.LocalMetaFile.is_meta_file(name):
                     continue
                 client_side_files[self.local_to_remote_path(root, name)] = True
 
@@ -180,52 +184,54 @@ class WorkingCopy:
         }
 
     def pull(self):
-        obj_list = self.list_objects_of_interest()
+        return pithos.pull(self)
 
-        constant_part = self.folder + '/'
-        for obj in obj_list:
-            file = obj['name'][len(constant_part):]
-            type = obj['content_type']
-            if self.is_folder(type):
-                try:
-                    # folder already exists locally
-                    del client_side_folders[file]
-                except:
-                    try:
-                        components = file.split('/')
-                        path_to_create = os.path.join(*components)
-                        os.makedirs(os.path.join(self.local, path_to_create))
-                        print("Created directory %s"
-                              % os.path.join(self.local, file))
-                    except OSError:
-                        pass
-            else:
-                try:
-                    # file already exists locally
-                    del client_side_files[file]
-                except:
-                    pass
-
-                components = file.split('/')
-                try:
-                    os.makedirs(os.path.join(self.local, *components[:-1]))
-                    print("Created directory %s"
-                          % os.path.join(self.local, *components[:-1]))
-                except OSError:
-                    pass
-                # kamaki/Pithos will take care of not downloading existing files
-                self.download(file)
-
-        for file in client_side_files.keys():
-            print('Removing file "%s"' % file)
-            os.remove(os.path.join(self.local, file))
-
-        for folder in client_side_folders.keys():
-            print('Removing folder "%s"' % folder)
-            try:
-                shutil.rmtree(os.path.join(self.local, folder))
-            except:
-                # a parent directory may already have been removed
-                pass
-
-        print("Pull successful.")
+#        obj_list = self.list_objects_of_interest()
+#
+#        constant_part = self.folder + '/'
+#        for obj in obj_list:
+#            file = obj['name'][len(constant_part):]
+#            type = obj['content_type']
+#            if self.is_folder(type):
+#                try:
+#                    # folder already exists locally
+#                    del client_side_folders[file]
+#                except:
+#                    try:
+#                        components = file.split('/')
+#                        path_to_create = os.path.join(*components)
+#                        os.makedirs(os.path.join(self.local, path_to_create))
+#                        print("Created directory %s"
+#                              % os.path.join(self.local, file))
+#                    except OSError:
+#                        pass
+#            else:
+#                try:
+#                    # file already exists locally
+#                    del client_side_files[file]
+#                except:
+#                    pass
+#
+#                components = file.split('/')
+#                try:
+#                    os.makedirs(os.path.join(self.local, *components[:-1]))
+#                    print("Created directory %s"
+#                          % os.path.join(self.local, *components[:-1]))
+#                except OSError:
+#                    pass
+#                # kamaki/Pithos will take care of not downloading existing files
+#                self.download(file)
+#
+#        for file in client_side_files.keys():
+#            print('Removing file "%s"' % file)
+#            os.remove(os.path.join(self.local, file))
+#
+#        for folder in client_side_folders.keys():
+#            print('Removing folder "%s"' % folder)
+#            try:
+#                shutil.rmtree(os.path.join(self.local, folder))
+#            except:
+#                # a parent directory may already have been removed
+#                pass
+#
+#        print("Pull successful.")

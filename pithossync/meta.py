@@ -1,4 +1,6 @@
 import pickle
+import os
+import copy
 
 
 class LocalMetaFile:
@@ -7,13 +9,13 @@ class LocalMetaFile:
     pickled_keys = ['remote_server',
                     'remote_container',
                     'remote_dir',
-                    'file_info',
+                    'object_info',
                     'empty_lock_file_hash']
 
     remote_server = None
     remote_container = None
     remote_dir = None
-    file_info = None
+    object_info = None
     empty_lock_file_hash = None
 
     local_dir = None
@@ -51,34 +53,43 @@ class LocalMetaFile:
                 raise ValueError
             setattr(self, key, value)
 
+    # all object paths are relative to the root/local directory of the working copy
     def get_object_version(self, path):
-        return self.file_info[path].version
+        return self.object_info[path].version
 
     def set_object_version(self, path, version):
-        if path not in self.file_info:
-            self.file_info[path] = {}
-        self.file_info[path].version = version
+        if path not in self.object_info:
+            self.object_info[path] = {}
+        self.object_info[path].version = version
 
     def get_file_modified(self, path):
-        return self.file_info[path].modified
+        assert(not self.object_info[path].folder)
+        return self.object_info[path].modified
 
     def set_file_modified(self, path, date):
-        if path not in self.file_info:
-            self.file_info[path] = {}
-        self.file_info[path].modified = date
+        if path not in self.object_info:
+            self.object_info[path] = {}
+        assert(not self.object_info[path].folder)
+        self.object_info[path].modified = date
 
     def is_object_folder(self, path):
-        return self.file_info[path].folder
+        return self.object_info[path].folder
     
     def is_object_file(self, path):
-        return not self.file_info[path].folder
+        return not self.object_info[path].folder
 
     def mark_object_as_folder(self, path):
-        if path not in self.file_info:
-            self.file_info[path] = {}
-        self.file_info[path].folder = True
+        if path not in self.object_info:
+            self.object_info[path] = {}
+        self.object_info[path].folder = True
 
     def mark_object_as_file(self, path):
-        if path not in self.file_info:
-            self.file_info[path] = {}
-        self.file_info[path].folder = False
+        if path not in self.object_info:
+            self.object_info[path] = {}
+        self.object_info[path].folder = False
+
+    def remove_object(self, path):
+        del self.object_info[path]
+
+    def get_object_list(self):
+        return copy.deepcopy(self.object_info)

@@ -12,6 +12,7 @@ class LockViolationError(Exception):
 
 
 # TODO: Add support for multiple locks at the same time
+# TODO: Create instant of 'past lock' from data/filelist/(name and version)
 class Lock:
     SLEEP_BEFORE_RETRY = 0.5 # seconds
     OBTAIN_TRIALS = 10
@@ -33,9 +34,31 @@ class Lock:
         self.obtain()
         return self
 
-    @staticmethod
-    def exists_in(object_list):
+    def exists_in(self, object_list):
         return Lock.REMOTE_META_FILE in object_list
+
+    def extract_from(self, object_list):
+        # TODO: delegate downloading to WorkingCopy?
+        # raises KeyError if lock does not exist
+
+        (fh, name) = tempfile.mkstemp()
+        file = os.fdopen(fh)
+        file.close()
+
+        lock_file = object_list[Lock.REMOTE_META_FILE]
+        self.working_copy.syncer.client.download_object(lock_file.name, file, version=lock_file.version)
+
+        os.unlink(name)
+
+        with open(name) as f:
+            return f.read()
+
+    def active_in(self, data):
+        # TODO: Handle multiple locks here
+        return data != ''
+
+
+    # TODO: get the versions of the files that are locked by the pusher
 
     def put(self):
         contents = 'Locked: Yes\nClient: %s\nAutoincrement: %i' % (self.client_id, self.autoincrement)
@@ -47,7 +70,8 @@ class Lock:
         file.close()
 
         # TODO: if not modified since etc.
-        self.working_copy.syncer.client.upload_object(working_copy, file)
+        # TODO: delegate uploading to WorkingCopy?
+        self.working_copy.syncer.client.upload_object(working_copy.folder + '/' + self.REMOTE_META_FILE, file)
         os.unlink(name)
 
     def init(self):
