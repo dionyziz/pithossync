@@ -1,6 +1,10 @@
 import uuid
 import tempfile
 import os
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class TimeoutError(Exception):
@@ -31,8 +35,13 @@ class Lock:
         self.client_id = uuid.uuid4()
 
     def __enter__(self):
+        logger.debug('Entering lock critical section')
         self.obtain()
         return self
+
+    def __exit__(self):
+        logger.debug('Leaving lock critical section')
+        self.release()
 
     def exists_in(self, object_list):
         return Lock.REMOTE_META_FILE in object_list
@@ -60,8 +69,9 @@ class Lock:
 
     # TODO: get the versions of the files that are locked by the pusher
 
-    def put(self):
-        contents = 'Locked: Yes\nClient: %s\nAutoincrement: %i' % (self.client_id, self.autoincrement)
+    def put(self, contents, create):
+        # contents = 'Locked: Yes\nClient: %s\nAutoincrement: %i' % (self.client_id, self.autoincrement)
+        logger.debug('Updating lock file on the server.')
 
         # TODO: put data directly to Pithos when kamaki supports this, without writing it to a file first
         (fh, name) = tempfile.mkstemp()
@@ -69,35 +79,47 @@ class Lock:
         file.write(contents)
         file.close()
 
-        # TODO: if not modified since etc.
-        # TODO: delegate uploading to WorkingCopy?
-        self.working_copy.syncer.client.upload_object(working_copy.folder + '/' + self.REMOTE_META_FILE, file)
+        with open(name) as f:
+            # TODO: if not modified since etc.
+            # TODO: upload using working_copy instead of accessing the syncer directly?
+            lock_name = self.working_copy.folder + '/' + self.REMOTE_META_FILE
+            if create:
+                logger.debug('Creating new lock file on the server.')
+                # make sure using 'if_not_match: *' that nobody else is creating the lock file
+                self.working_copy.syncer.client.upload_object(lock_name, f, if_not_exist=True)
+                # TODO: handle lock created in the meantime race-condition
+            else:
+                logger.debug('Updating existing lock file on th server.')
+                self.working_copy.syncer.client.upload_object(lock_name, f, if_etag_match=self.last_lock_str_hash)
+                # TODO: handle lock modified by someone else (in case of multilocking)
+
         os.unlink(name)
 
+        # TODO: when kamaki supports etag retrieval, change this to read from the upload result
+        self.last_lock_str_hash = 'I am an etag'
+        self.autoincrement += 1
+
     def init(self):
-        # TODO: Use self.put
-        upload(container=remote_container,
-               name=remote_dir + '/' + self.REMOTE_META_FILENAME,
-               contents='',
-               if_not_match='*')
+        self.put('', True)
 
     def obtain(self):
+        logger.debug('Obtaining lock as client %s with autoincrement %s' % (self.client_id, self.autoincrement))
+
         tries = self.OBTAIN_TRIALS
         while tries > 0:
             # TODO: Use self.put
             contents = 'Locked.\nBy: %s\nAutoincrement: %s' % (self.client_id, self.autoincrement)
             try:
-                result = upload(container=remote_container,
-                                name=remote_dir + '/' + REMOTE_META_FILENAME,
-                                contents=contents,
-                                if_match=self.last_lock_str_hash)
-                self.last_lock_str_hash = result.etag
-                self.autoincrement += 1
+                result = self.put(contents, False)
+                logger.debug('Lock obtained successfully.')
                 break
             except:
+                logger.debug('Failed to obtain lock.')
                 tries -= 1
                 if tries == 0:
+                    logger.warning('Failed to obtain lock and timed out. Bailing out.')
                     break
+                logger.debug('Retrying to obtain lock after %i' % self.SLEEP_BEFORE_RETRY)
                 sleep(self.SLEEP_BEFORE_RETRY)
 
         raise TimeoutError
@@ -106,6 +128,7 @@ class Lock:
         raise NotImplementedError
 
     def start_keep_alive(self):
+        logger.debug('Lock heartbeat.')
         self.renew()
         self.heartbeat = threading.Timer(self.KEEP_ALIVE_INTERVAL, self.keep_alive)
         self.heartbeat.start()
@@ -114,10 +137,8 @@ class Lock:
         if self.heartbeat is not None:
             self.heartbeat.cancel()
 
-    def __exit__(self):
-        self.release()
-
     def release(self):
+        logger.debug('Releasing lock.')
         self.stop_keep_alive()
         raise NotImplementedError
         # write()

@@ -4,47 +4,25 @@ import sys
 import logging
 
 from kamaki.clients.pithos import PithosClient, ClientError
+from kamaki.clients import logger
 
 import pithossync
-from test.base import TestPithosSyncBase
+from test.syncbase import TestPithosSyncBase
 
 
 class TestSync(TestPithosSyncBase):
     def setUp(self):
-
-        # set up useful settings variables
-        self.url = os.getenv('PITHOS_URL', 'https://pithos.okeanos.grnet.gr/v1')
-        self.token = os.getenv('ASTAKOS_TOKEN', '')
-        if self.token == '':
-            print('\n\nUnable to run test suite.')
-            print('Did you export the ASTAKOS_TOKEN environmental variable?')
-            print('You can do this by running:')
-            print('ASTAKOS_TOKEN="your_token_here" python runtests.py\n')
-            sys.exit(0)
-
-        self.account = 'd8e6f8bb-619b-4ce6-8903-89fabdca024d'
-        self.container = 'pithos'
-        self.syncer = pithossync.Syncer(self.url, self.token,
-                                        self.account, self.container)
-
-        self.client = PithosClient(self.url, self.token,
-                                   self.account, self.container)
-
-        # the local folder used by the syncing client
-        local_path = 'localmirror'
-        local_path_2 = 'localmirror2'
-
-        # the local folder used by the tests, unavailable to the syncing client
-        workspace_path = 'localworkspace'
-        # the name of the remote folder within the pithos container
-        remote_path = 'sync-test'
-
-        super(TestSync, self).setUp(workspace_path, local_path, local_path_2, remote_path)
+        super(TestSync, self).setUp()
 
         # clean up from previous test runs that may have crashed
         self.local.delete()
         self.workspace.delete()
         self.remote.recursive_delete(self.remote.path)
+
+        # perform initialization on the remote folder (create lockfile etc.)
+        self.syncer.init(self.workspace.path, self.remote.path)
+
+        self.workspace.delete()
 
         assert(not self.local.exists())
         assert(not self.local.exists())
@@ -78,6 +56,8 @@ class TestSync(TestPithosSyncBase):
         # make sure the server-side directory is not affected
         # by the clone operation
         self.assertTrue(self.remote.folder_empty(self.remote.path))
+
+# TODO: un-init the target dir, then test to assert cloning fails
 
 #    def test_clone_one_text(self):
 #        """Check if cloning a folder containing a single text file works.

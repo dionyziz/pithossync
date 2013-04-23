@@ -2,13 +2,26 @@ from kamaki.clients.pithos import PithosClient, ClientError
 import os
 import ConfigParser
 import shutil
+
+from init import init
+from push import push
 from pull import pull
+from clone import clone
+
 import meta
 import lock
+import logging
 
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # raised when trying to push or pull on a local directory which does not have a metafile
 class InvalidWorkingCopyError(Exception):
+    pass
+
+
+class FileNotFoundError(Exception):
     pass
 
 
@@ -26,28 +39,30 @@ class WorkingCopy:
         try:
             f = open(path, 'wb+')
         except:
-            print("Failed to write to local file '%s'." % path)
+            # TODO: make this an exception?
+            logger.error("Failed to write to local file '%s'." % path)
             return
         try:
             self.syncer.client.download_object(remotepath, f)
         except ClientError:
-            print("Failed to download %s." % remotepath)
+            # TODO: make this an exception?
+            logger.error("Failed to download %s." % remotepath)
             return
         f.close()
-        print("Downloaded remote file '%s' into %s (%i bytes)" %
-              (remotepath, path, os.stat(path).st_size))
+        logger.info("Downloaded remote file '%s' into %s (%i bytes)" %
+                    (remotepath, path, os.stat(path).st_size))
 
     def upload(self, destination, source):
         f = open(source, 'r')
         self.syncer.client.upload_object(self.folder + '/' + destination, f)
         f.close()
-        print("Uploaded local file '%s' (%i bytes)" %
-              (source, os.stat(source).st_size))
+        logger.info("Uploaded local file '%s' (%i bytes)" %
+                    (source, os.stat(source).st_size))
 
     def remote_mkdir(self, name):
         dir = self.folder + '/' + name
         self.syncer.client.create_directory(dir)
-        print("Created remote directory '%s'." % dir)
+        logger.info("Created remote directory '%s'." % dir)
 
     def is_folder(self, type):
         return type in ['application/directory', 'application/folder']
@@ -58,18 +73,8 @@ class WorkingCopy:
         for obj in obj_list:
             if obj['name'][0:len(name + '/')] == name + '/':
                 self.syncer.client.object_delete(obj['name'])
-                print("Deleted remote object '%s'" % (obj['name']))
-        print("Emptied remote directory '%s'" % name)
-
-    def local_recursive_delete(self, folder):
-        """rm -rf folder"""
-        if os.path.exists(folder):
-            for root, dirs, files in os.walk(folder, topdown=False):
-                for name in files:
-                    os.remove(os.path.join(root, name))
-                for name in dirs:
-                    os.rmdir(os.path.join(root, name))
-        print("Emptied local directory '%s'" % folder)
+                logger.info("Deleted remote object '%s'" % (obj['name']))
+        logger.info("Emptied remote directory '%s'" % name)
 
     def __init__(self, syncer, local, folder = None):
         self.syncer = syncer
@@ -82,11 +87,16 @@ class WorkingCopy:
         else:
             self.folder = folder
 
-    def clone(self):
-        """Builds a new working copy by cloning a folder from a remote container."""
+    def init(self):
+        """Builds a new local working copy by initializing a new empty remote folder"""
 
-        # TODO: Write local meta file
-        pull(self)
+        init(self)
+
+    def clone(self):
+        """Builds a new local working copy by cloning a folder from an already inited
+           remote folder in a container."""
+        
+        clone(self)
 
     def local_to_remote_path(self, root, name):
         path = os.path.join(root, name)
@@ -162,7 +172,7 @@ class WorkingCopy:
 
         for file in server_side_files.keys() + server_side_folders.keys():
             self.syncer.client.object_delete(self.folder + '/' + file)
-        print("Push successful.")
+        logger.info("Push successful.")
 
     def list_local_objects(self):
         client_side_files = {}
@@ -184,7 +194,7 @@ class WorkingCopy:
         }
 
     def pull(self):
-        return pithos.pull(self)
+        return pull(self)
 
 #        obj_list = self.list_objects_of_interest()
 #

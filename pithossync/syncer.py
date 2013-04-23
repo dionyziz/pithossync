@@ -1,8 +1,11 @@
 from __future__ import absolute_import
-from pithossync.workingcopy import WorkingCopy, InvalidWorkingCopyError
 import os
+import logging
 
 from kamaki.clients.pithos import PithosClient, ClientError
+from kamaki.clients import logger
+
+from pithossync.workingcopy import WorkingCopy, InvalidWorkingCopyError
 
 
 class DirectoryNotEmptyError(Exception):
@@ -14,6 +17,9 @@ class ConflictError(Exception):
 
 
 class Syncer:
+    """Main entry point for the usage of the pithos sync library. Other modules should not be used
+       directly."""
+
     def __init__(self, url, token, account, container):
         self.url = url
         self.token = token
@@ -21,12 +27,16 @@ class Syncer:
         self.container = container
         self.client = PithosClient(self.url, self.token,
                                    self.account, self.container)
+        logger.set_log_filename('/home/dionyziz/pithos.log')
 
     def init(self, local, remote):
-        raise NotImplemented
+        self.prepare_for_init_or_clone(local, remote)
 
-    def clone(self, local, remote):
-        """Creates the appropriate directories, ensures the target folder is empty, and initiates a clone operaiton."""
+        working_copy = WorkingCopy(self, local, remote)
+        working_copy.init()
+
+    def prepare_for_init_or_clone(self, local, remote):
+        """Creates the appropriate directories before a clone/init operation."""
 
         try:
             if not os.listdir(local) == []:
@@ -37,6 +47,11 @@ class Syncer:
                 os.mkdir(local)
             except OSError:
                 raise
+
+    def clone(self, local, remote):
+        """Creates the appropriate directories, ensures the target folder is empty, and initiates a clone operaiton."""
+
+        self.prepare_for_init_or_clone(local, remote)
 
         # except TypeError: # if local is not a string
         working_copy = WorkingCopy(self, local, remote)

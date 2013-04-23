@@ -1,11 +1,17 @@
+from __future__ import absolute_import
+
 import unittest
 import os
 import filecmp
 from pprint import pprint
 
-from kamaki.clients.pithos import ClientError
+from kamaki.clients.pithos import PithosClient, ClientError
+from kamaki.clients import logger
 
-class TestPithosSyncBase(unittest.TestCase):
+from test.pithosbase import TestPithosBase
+
+
+class TestPithosSyncBase(TestPithosBase):
 
     """A base class for testing pithos sync.
 
@@ -145,7 +151,23 @@ class TestPithosSyncBase(unittest.TestCase):
         def exists(self):
             return os.path.exists(self.path)
 
-    def setUp(self, workspace_path, local_path, local_path_2, remote_path):
+    def setUp(self):
+        super(TestPithosSyncBase, self).setUp()
+
+        self.client = PithosClient(self.url, self.token,
+                                   self.account, self.container)
+
+        logger.set_log_filename(os.devnull)
+
+        # the local folder used by the syncing client
+        local_path = 'localmirror'
+        local_path_2 = 'localmirror2'
+
+        # the local folder used by the tests, unavailable to the syncing client
+        workspace_path = 'localworkspace'
+        # the name of the remote folder within the pithos container
+        remote_path = 'sync-test'
+
         self.workspace = self.Workspace(self, workspace_path)
         self.local = self.Local(self, local_path)
         self.local2 = self.Local(self, local_path_2)

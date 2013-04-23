@@ -1,19 +1,16 @@
+from __future__ import absolute_import
+
 import unittest
 import os
 
 import pithossync
 
+from test.pithosbase import TestPithosBase
 
-class TestLock(unittest.TestCase):
+
+class TestLock(TestPithosBase):
     def setUp(self):
-        self.url = os.getenv('PITHOS_URL', 'https://pithos.okeanos.grnet.gr/v1')
-        self.token = os.getenv('ASTAKOS_TOKEN', '')
-
-        self.account = 'd8e6f8bb-619b-4ce6-8903-89fabdca024d'
-        self.container = 'pithos'
-        self.syncer = pithossync.Syncer(self.url, self.token,
-                                        self.account, self.container)
-
+        super(TestLock, self).setUp()
         self.working_copy_path = 'unittest_working_copy'
         self.mirrored_folder = 'unittest_mirrored_folder'
 
