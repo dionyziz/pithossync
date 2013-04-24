@@ -11,3 +11,4 @@ def clone(working_copy):
                 (working_copy.folder, working_copy.syncer.container, working_copy.local))
     working_copy.meta_file.create(working_copy.syncer.url, working_copy.syncer.container, working_copy.folder)
     working_copy.pull()
+    logger.info("Cloning completed.")

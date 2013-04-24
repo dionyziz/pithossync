@@ -8,6 +8,9 @@ from kamaki.clients import logger
 from pithossync.workingcopy import WorkingCopy, InvalidWorkingCopyError
 
 
+logger = logging.getLogger(__name__)
+
+
 class DirectoryNotEmptyError(Exception):
     pass
 
@@ -20,6 +23,8 @@ class Syncer:
     """Main entry point for the usage of the pithos sync library. Other modules should not be used
        directly."""
 
+    # TODO: Move 'container' and 'url' into working copy? Disallow from syncer constructor?
+    #       Change class API hierarchy to allow top-level working copies?
     def __init__(self, url, token, account, container):
         self.url = url
         self.token = token
@@ -27,7 +32,6 @@ class Syncer:
         self.container = container
         self.client = PithosClient(self.url, self.token,
                                    self.account, self.container)
-        logger.set_log_filename('/home/dionyziz/pithos.log')
 
     def init(self, local, remote):
         self.prepare_for_init_or_clone(local, remote)
@@ -43,7 +47,7 @@ class Syncer:
                 raise DirectoryNotEmptyError
         except OSError:
             try:
-                print('Making local directory "%s"' % local)
+                logger.info('Making local directory "%s"' % local)
                 os.mkdir(local)
             except OSError:
                 raise

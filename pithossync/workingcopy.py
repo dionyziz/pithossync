@@ -11,6 +11,7 @@ from clone import clone
 import meta
 import lock
 import logging
+from pprint import pprint
 
 
 logger = logging.getLogger(__name__)
@@ -59,10 +60,21 @@ class WorkingCopy:
         logger.info("Uploaded local file '%s' (%i bytes)" %
                     (source, os.stat(source).st_size))
 
+    def remote_recursive_mkdir(self, name):
+        logger.info('Creating remote directory "%s" recursively.', name)
+
+        parts = name.split('/')
+
+        for i, _ in enumerate(parts):
+            dir = '/'.join(parts[0:i + 1])
+            logger.debug('Creating remote directory "%s".' % dir)
+            self.syncer.client.create_directory(dir)
+
     def remote_mkdir(self, name):
         dir = self.folder + '/' + name
+        logger.info('Creating remote directory "%s".' % dir)
         self.syncer.client.create_directory(dir)
-        logger.info("Created remote directory '%s'." % dir)
+        logger.info('Created remote directory "%s".' % dir)
 
     def is_folder(self, type):
         return type in ['application/directory', 'application/folder']
@@ -106,6 +118,8 @@ class WorkingCopy:
         return remote_path
 
     def list_objects_of_interest(self):
+        logger.debug('Listing objects in remote folder "%s"', self.folder)
+
         ret = {}
 
         # TODO: Use meta-file last pull date for fast pull
@@ -113,6 +127,8 @@ class WorkingCopy:
         response = self.syncer.client.container_get(prefix=self.folder, if_modified_since=if_modified_since)
 
         if response.status == self.HTTP_NOT_MODIFIED:
+            logger.debug('Received HTTP_NOT_MODIFIED, listing suppressed.')
+
             return {
                 'modified': False
             }
@@ -120,13 +136,23 @@ class WorkingCopy:
         obj_list = response.json
         found = False
         for obj in obj_list:
+            logger.debug('Found remote object "%s" with content type "%s" and version %i.', obj['name'], obj['content_type'], obj['x_object_version'])
+
             if obj['name'] == self.folder:
                 found = True
                 continue
-            file = obj['name'][len(self.folder + '/'):]
+            name = obj['name'][len(self.folder + '/'):]
             type = obj['content_type']
-            ret[obj['name']] = obj
+            version = obj['x_object_version']
+            ret[name] = {
+                name: name,
+                type: type,
+                version: version
+            }
+
         if not found:
+            logger.debug('Parent directory "%s" requested not found.', self.folder)
+
             raise FileNotFoundError
 
         return {

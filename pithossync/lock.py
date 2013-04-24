@@ -35,12 +35,12 @@ class Lock:
         self.client_id = uuid.uuid4()
 
     def __enter__(self):
-        logger.debug('Entering lock critical section')
+        logger.debug('Entering lock critical section.')
         self.obtain()
         return self
 
     def __exit__(self):
-        logger.debug('Leaving lock critical section')
+        logger.debug('Leaving lock critical section.')
         self.release()
 
     def exists_in(self, object_list):
@@ -89,7 +89,7 @@ class Lock:
                 self.working_copy.syncer.client.upload_object(lock_name, f, if_not_exist=True)
                 # TODO: handle lock created in the meantime race-condition
             else:
-                logger.debug('Updating existing lock file on th server.')
+                logger.debug('Updating existing lock file on the server.')
                 self.working_copy.syncer.client.upload_object(lock_name, f, if_etag_match=self.last_lock_str_hash)
                 # TODO: handle lock modified by someone else (in case of multilocking)
 
@@ -99,11 +99,17 @@ class Lock:
         self.last_lock_str_hash = 'I am an etag'
         self.autoincrement += 1
 
+        logger.debug('Lock update successful.')
+
     def init(self):
+        logger.debug('Initing lock.')
+
         self.put('', True)
 
+        logger.debug('Lock init successful.')
+
     def obtain(self):
-        logger.debug('Obtaining lock as client %s with autoincrement %s' % (self.client_id, self.autoincrement))
+        logger.debug('Obtaining lock as client %s with autoincrement %s.' % (self.client_id, self.autoincrement))
 
         tries = self.OBTAIN_TRIALS
         while tries > 0:
@@ -119,7 +125,7 @@ class Lock:
                 if tries == 0:
                     logger.warning('Failed to obtain lock and timed out. Bailing out.')
                     break
-                logger.debug('Retrying to obtain lock after %i' % self.SLEEP_BEFORE_RETRY)
+                logger.debug('Retrying to obtain lock after %i.' % self.SLEEP_BEFORE_RETRY)
                 sleep(self.SLEEP_BEFORE_RETRY)
 
         raise TimeoutError
@@ -132,6 +138,7 @@ class Lock:
         self.renew()
         self.heartbeat = threading.Timer(self.KEEP_ALIVE_INTERVAL, self.keep_alive)
         self.heartbeat.start()
+        logger.debug('Heartbeat completed.')
 
     def stop_keep_alive(self):
         if self.heartbeat is not None:

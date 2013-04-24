@@ -34,8 +34,10 @@ class LocalMetaFile:
         self.meta_file_name = os.path.join(self.local_dir, self.LOCAL_META_FILENAME)
 
     def create(self, remote_server, remote_container, remote_dir):
-        logger.debug('Creating new local meta file in directory "%s" for remote url "%s" using container "%s" and remote directory "%s"',
-                     self.local_dir, remote_server, remote_container, remote_dir)
+        logger.debug('Creating new local meta file in directory "%s" with:', self.local_dir)
+        logger.debug('Remote url: "%s".', remote_server)
+        logger.debug('Remote container: "%s".', remote_container)
+        logger.debug('Remote directory: "%s".', remote_dir)
 
         self.remote_server = remote_server
         self.remote_container = remote_container
@@ -89,19 +91,27 @@ class LocalMetaFile:
         return self.object_info[path].version
 
     def set_object_version(self, path, version):
+        logger.debug('Setting local cache version of object "%s" to %i.', path, version)
+
         if path not in self.object_info:
             self.object_info[path] = {}
         self.object_info[path].version = version
+
+        logger.debug('Local cache entry updated.')
 
     def get_file_modified(self, path):
         assert(not self.object_info[path].folder)
         return self.object_info[path].modified
 
     def set_file_modified(self, path, date):
+        logger.debug('Setting local cache modification date of object "%s" to "%s".', path, date)
+
         if path not in self.object_info:
             self.object_info[path] = {}
         assert(not self.object_info[path].folder)
         self.object_info[path].modified = date
+
+        logger.debug('Local cache entry updated.')
 
     def is_object_folder(self, path):
         return self.object_info[path].folder
@@ -110,17 +120,29 @@ class LocalMetaFile:
         return not self.object_info[path].folder
 
     def mark_object_as_folder(self, path):
+        logger.debug('Marking local cache type of object "%s" as folder.', path)
+
         if path not in self.object_info:
             self.object_info[path] = {}
         self.object_info[path].folder = True
 
+        logger.debug('Local cache entry updated.')
+
     def mark_object_as_file(self, path):
+        logger.debug('Marking local cache type of object "%s" as file.', path)
+
         if path not in self.object_info:
             self.object_info[path] = {}
         self.object_info[path].folder = False
 
+        logger.debug('Local cache entry updated.')
+
     def remove_object(self, path):
+        logger.debug('Deleting local cache object "%s".', path)
+
         del self.object_info[path]
+
+        logger.debug('Local cache entry deleted.')
 
     def get_object_list(self):
         return copy.deepcopy(self.object_info)

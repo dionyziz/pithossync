@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import unittest
 import os
 import filecmp
+import logging
 from pprint import pprint
 
 from kamaki.clients.pithos import PithosClient, ClientError
@@ -51,7 +52,6 @@ class TestPithosSyncBase(TestPithosBase):
             try:
                 self.client.get_object_info(name)
             except ClientError:
-                print('Error getting object info for object "%s"' % name)
                 return False
             return True
 
@@ -67,9 +67,7 @@ class TestPithosSyncBase(TestPithosBase):
             return True
 
         def recursive_delete(self, name):
-            print("Listing objects")
             obj_list = self.client.list_objects()
-            print("Done listing")
 
             # delete all the folders' contents
             for obj in obj_list:
