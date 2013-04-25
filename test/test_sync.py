@@ -16,7 +16,6 @@ class TestSync(TestPithosSyncBase):
 
         # clean up from previous test runs that may have crashed
         self.local.delete()
-        self.workspace.delete()
         self.remote.recursive_delete(self.remote.path)
 
         # perform initialization on the remote folder (create lockfile etc.)
@@ -59,22 +58,22 @@ class TestSync(TestPithosSyncBase):
 
 # TODO: un-init the target dir, then test to assert cloning fails
 
-#    def test_clone_one_text(self):
-#        """Check if cloning a folder containing a single text file works.
-#
-#        Create one text test file on the server and make sure it's
-#        downloaded by the client during sync.
-#        """
-#
-#        os.mkdir(self.workspace.path)
-#        self.workspace.write_file('one.txt', 'Hello, world!\n')
-#        self.workspace.upload('one.txt')
-#
-#        os.mkdir(self.local.path)
-#        self.syncer.clone(self.local.path, self.remote.path)
-#
-#        self.assertTreesEqual(self.local.path, self.workspace.path)
-#
+    def test_clone_one_text(self):
+        """Check if cloning a folder containing a single text file works.
+
+        Create one text test file on the server and make sure it's
+        downloaded by the client during sync.
+        """
+
+        os.mkdir(self.workspace.path)
+        self.workspace.write_file('one.txt', 'Hello, world!\n')
+        self.workspace.upload('one.txt')
+
+        os.mkdir(self.local.path)
+        self.syncer.clone(self.local.path, self.remote.path)
+
+        self.assertTreesEqual(self.local.path, self.workspace.path)
+
 #    def test_clone_one_bin(self):
 #        """Check if cloning a folder with a single binary file works."""
 #        self.workspace.create_binary('test.bin', 8)
@@ -270,8 +269,11 @@ class TestSync(TestPithosSyncBase):
         Local: self.local.path, self.workspace.path
         Remote: self.remote.path
         """
+
         logging.debug('test_sync test suite cleaning up')
         self.local.delete()
         self.local2.delete()
         self.workspace.delete()
         self.remote.recursive_delete(self.remote.path)
+
+        super(TestSync, self).tearDown()
