@@ -30,14 +30,14 @@ class Syncer:
         self.token = token
         self.account = account
         self.container = container
-        self.client = PithosClient(self.url, self.token,
-                                   self.account, self.container)
 
     def init(self, local, remote):
         self.prepare_for_init_or_clone(local, remote)
 
         working_copy = WorkingCopy(self, local, remote)
         working_copy.init()
+
+        return working_copy
 
     def prepare_for_init_or_clone(self, local, remote):
         """Creates the appropriate directories before a clone/init operation."""

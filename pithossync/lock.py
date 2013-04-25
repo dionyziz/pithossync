@@ -61,7 +61,7 @@ class Lock:
         lock_file = object_list[Lock.REMOTE_META_FILE]
 
         logger.debug('Downloading lock file "%s" at version %i.', lock_file['name'], lock_file['version'])
-        self.working_copy.syncer.client.download_object(base_path + '/' + lock_file['name'], file, version=lock_file['version'])
+        self.working_copy.client.download_object(base_path + '/' + lock_file['name'], file, version=lock_file['version'])
         logger.debug('Download successful.')
 
         file.close()
@@ -97,11 +97,11 @@ class Lock:
             if create:
                 logger.debug('Creating new lock file on the server.')
                 # make sure using 'if_not_match: *' that nobody else is creating the lock file
-                self.working_copy.syncer.client.upload_object(lock_name, f, if_not_exist=True)
+                self.working_copy.client.upload_object(lock_name, f, if_not_exist=True)
                 # TODO: handle lock created in the meantime race-condition
             else:
                 logger.debug('Updating existing lock file on the server.')
-                self.working_copy.syncer.client.upload_object(lock_name, f, if_etag_match=self.last_lock_str_hash)
+                self.working_copy.client.upload_object(lock_name, f, if_etag_match=self.last_lock_str_hash)
                 # TODO: handle lock modified by someone else (in case of multilocking)
 
         os.unlink(name)

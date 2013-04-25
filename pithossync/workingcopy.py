@@ -31,6 +31,10 @@ class WorkingCopy:
 
     HTTP_NOT_MODIFIED = 304
 
+    @staticmethod
+    def is_folder(type):
+        return type in ['application/directory', 'application/folder']
+
     def destroy(self):
         self.delete_meta_file()
 
@@ -44,7 +48,7 @@ class WorkingCopy:
             logger.error("Failed to write to local file '%s'." % path)
             return
         try:
-            self.syncer.client.download_object(remotepath, f)
+            self.client.download_object(remotepath, f)
         except ClientError:
             # TODO: make this an exception?
             logger.error("Failed to download %s." % remotepath)
@@ -55,7 +59,7 @@ class WorkingCopy:
 
     def upload(self, destination, source):
         f = open(source, 'r')
-        self.syncer.client.upload_object(self.folder + '/' + destination, f)
+        self.client.upload_object(self.folder + '/' + destination, f)
         f.close()
         logger.info("Uploaded local file '%s' (%i bytes)" %
                     (source, os.stat(source).st_size))
@@ -68,23 +72,20 @@ class WorkingCopy:
         for i, _ in enumerate(parts):
             dir = '/'.join(parts[0:i + 1])
             logger.debug('Creating remote directory "%s".' % dir)
-            self.syncer.client.create_directory(dir)
+            self.client.create_directory(dir)
 
     def remote_mkdir(self, name):
         dir = self.folder + '/' + name
         logger.info('Creating remote directory "%s".' % dir)
-        self.syncer.client.create_directory(dir)
+        self.client.create_directory(dir)
         logger.info('Created remote directory "%s".' % dir)
 
-    def is_folder(self, type):
-        return type in ['application/directory', 'application/folder']
-
     def remote_recursive_delete_contents(self, name):
-        obj_list = self.syncer.client.list_objects()
+        obj_list = self.client.list_objects()
         # delete all the folders' contents
         for obj in obj_list:
             if obj['name'][0:len(name + '/')] == name + '/':
-                self.syncer.client.object_delete(obj['name'])
+                self.client.object_delete(obj['name'])
                 logger.info("Deleted remote object '%s'" % (obj['name']))
         logger.info("Emptied remote directory '%s'" % name)
 
@@ -93,6 +94,9 @@ class WorkingCopy:
         self.local = local
         self.meta_file = meta.LocalMetaFile(self.local)
         self.lock = lock.Lock(self)
+
+        self.client = PithosClient(syncer.url, syncer.token,
+                                   syncer.account, syncer.container)
 
         if folder is None:
             # working copy already init'ed
@@ -128,7 +132,7 @@ class WorkingCopy:
 
         # TODO: Use meta-file last pull date for fast pull
         if_modified_since = 'Thu, 01 Jan 1970 00:00:00 GMT'
-        response = self.syncer.client.container_get(prefix=self.folder, if_modified_since=if_modified_since)
+        response = self.client.container_get(prefix=self.folder, if_modified_since=if_modified_since)
 
         if response.status == self.HTTP_NOT_MODIFIED:
             logger.debug('Received HTTP_NOT_MODIFIED, listing suppressed.')
@@ -201,7 +205,7 @@ class WorkingCopy:
                     self.remote_mkdir(self.local_to_remote_path(root, name))
 
         for file in server_side_files.keys() + server_side_folders.keys():
-            self.syncer.client.object_delete(self.folder + '/' + file)
+            self.client.object_delete(self.folder + '/' + file)
         logger.info("Push successful.")
 
     def list_local_objects(self):
