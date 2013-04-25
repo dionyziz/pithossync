@@ -65,6 +65,13 @@ class TestPithosSyncBase(TestPithosBase):
                 if obj['name'][0:len(name + '/')] == name + '/':
                     return False
             return True
+        
+        def folder_empty_but_lock(self, name):
+            obj_list = self.client.list_objects()
+            for obj in obj_list:
+                if obj['name'][0:len(name + '/')] == name + '/' and obj['name'][len(name + '/'):] != '.pithos_sync':
+                    return False
+            return True
 
         def recursive_delete(self, name):
             obj_list = self.client.list_objects()

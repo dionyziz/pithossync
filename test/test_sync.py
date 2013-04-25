@@ -32,7 +32,7 @@ class TestSync(TestPithosSyncBase):
             self.remote.mkdir()
             assert(self.remote.object_exists(self.remote.path))
             assert(self.remote.is_folder(self.remote.path))
-            assert(self.remote.folder_empty(self.remote.path))
+            assert(self.remote.folder_empty_but_lock(self.remote.path))
         except ClientError:
             print('\n\nUnable to run test suite.')
             print('Did you export the correct URL using the PITHOS_URL environmental variable?')
@@ -55,7 +55,7 @@ class TestSync(TestPithosSyncBase):
         self.assertTreesEqual(self.local.path, self.workspace.path)
         # make sure the server-side directory is not affected
         # by the clone operation
-        self.assertTrue(self.remote.folder_empty(self.remote.path))
+        self.assertTrue(self.remote.folder_empty_but_lock(self.remote.path))
 
 # TODO: un-init the target dir, then test to assert cloning fails
 

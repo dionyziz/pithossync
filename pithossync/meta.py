@@ -42,6 +42,7 @@ class LocalMetaFile:
         self.remote_server = remote_server
         self.remote_container = remote_container
         self.remote_dir = remote_dir
+        self.object_info = {}
         self.save()
 
         logger.debug('Local meta file created.')
