@@ -89,43 +89,43 @@ class LocalMetaFile:
 
     # all object paths are relative to the root/local directory of the working copy
     def get_object_version(self, path):
-        return self.object_info[path].version
+        return self.object_info[path]['version']
 
     def set_object_version(self, path, version):
         logger.debug('Setting local cache version of object "%s" to %i.', path, version)
 
         if path not in self.object_info:
             self.object_info[path] = {}
-        self.object_info[path].version = version
+        self.object_info[path]['version'] = version
 
         logger.debug('Local cache entry updated.')
 
     def get_file_modified(self, path):
-        assert(not self.object_info[path].folder)
-        return self.object_info[path].modified
+        assert(not self.object_info[path]['is_folder'])
+        return self.object_info[path]['modified']
 
     def set_file_modified(self, path, date):
         logger.debug('Setting local cache modification date of object "%s" to "%s".', path, date)
 
         if path not in self.object_info:
             self.object_info[path] = {}
-        assert(not self.object_info[path].folder)
-        self.object_info[path].modified = date
+        assert(not self.object_info[path]['is_folder'])
+        self.object_info[path]['modified'] = date
 
         logger.debug('Local cache entry updated.')
 
     def is_object_folder(self, path):
-        return self.object_info[path].folder
+        return self.object_info[path]['is_folder']
     
     def is_object_file(self, path):
-        return not self.object_info[path].folder
+        return not self.object_info[path]['folder']
 
     def mark_object_as_folder(self, path):
         logger.debug('Marking local cache type of object "%s" as folder.', path)
 
         if path not in self.object_info:
             self.object_info[path] = {}
-        self.object_info[path].folder = True
+        self.object_info[path]['is_folder'] = True
 
         logger.debug('Local cache entry updated.')
 
@@ -134,7 +134,7 @@ class LocalMetaFile:
 
         if path not in self.object_info:
             self.object_info[path] = {}
-        self.object_info[path].folder = False
+        self.object_info[path]['is_folder'] = False
 
         logger.debug('Local cache entry updated.')
 

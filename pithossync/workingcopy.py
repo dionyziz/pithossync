@@ -150,11 +150,11 @@ class WorkingCopy:
                 found = True
                 continue
             name = obj['name'][len(self.folder + '/'):]
-            type = obj['content_type']
+            is_folder = self.is_folder(obj['content_type'])
             version = obj['x_object_version']
             ret[name] = {
                 'name': name,
-                'type': type,
+                'is_folder': is_folder,
                 'version': version
             }
 

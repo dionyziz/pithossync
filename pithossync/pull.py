@@ -129,7 +129,7 @@ def pull(working_copy):
 
                 logger.debug('Local object version %i is outdated and superseeded by remote object version %i.', local_version, object['version'])
 
-                if is_object_dirty(object['name']):
+                if is_local_object_dirty(object['name']):
                     logger.debug('Local object is dirty, bailing out with conflict.')
                     raise pithossync.ConflictError
 
@@ -150,12 +150,12 @@ def pull(working_copy):
                     # nothing to do
                     continue
 
-                if is_object_dirty(object['name']):
+                if is_local_object_dirty(object['name']):
                     logger.debug('Object has also been created independently locally, bailing out with conflict.')
 
                     raise pithossync.ConflictError
 
-            if object['folder']:
+            if object['is_folder']:
                 logger.debug('Remote object is a folder.')
                 
                 try:
@@ -172,8 +172,9 @@ def pull(working_copy):
 
                 logger.debug('Updating meta file with new folder object information.')
 
+                working_copy.meta_file.mark_object_as_folder(object['name'])
                 # modified date does not matter for folders
-                working_copy.meta_file.set_file_version(object['name'], object['version'])
+                working_copy.meta_file.set_object_version(object['name'], object['version'])
 
                 logger.debug('Meta file updated.')
             else:
@@ -192,13 +193,14 @@ def pull(working_copy):
                 logger.debug('File object downloaded.')
 
                 # We are assuming that the user is not modifying any files while the pull operation is running
-                stat = os.stat(local_object_path)
+                stat = os.stat(working_copy.local + '/' + object['name'])
                 present_time = time.ctime(stat.st_mtime)
 
                 logger.debug('Updating meta file with new file object information.')
 
+                working_copy.meta_file.mark_object_as_file(object['name'])
                 working_copy.meta_file.set_file_modified(object['name'], present_time)
-                working_copy.meta_file.set_file_version(object['name'], object['version'])
+                working_copy.meta_file.set_object_version(object['name'], object['version'])
 
                 logger.debug('Meta file updated.')
 
