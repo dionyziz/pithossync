@@ -2,6 +2,7 @@ import uuid
 import tempfile
 import os
 import logging
+import sys
 
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,10 @@ class Lock:
     client_id = None
     autoincrement = 0
 
+    @classmethod
+    def is_lock_file(cls, name):
+        return cls.REMOTE_META_FILE == name
+
     def __init__(self, working_copy):
         self.working_copy = working_copy
         self.client_id = uuid.uuid4()
@@ -46,21 +51,27 @@ class Lock:
     def exists_in(self, object_list):
         return Lock.REMOTE_META_FILE in object_list
 
-    def extract_from(self, object_list):
+    def extract_from(self, base_path, object_list):
         # TODO: delegate downloading to WorkingCopy?
         # raises KeyError if lock does not exist
 
         (fh, name) = tempfile.mkstemp()
-        file = os.fdopen(fh)
-        file.close()
+        file = os.fdopen(fh, 'wb')
 
         lock_file = object_list[Lock.REMOTE_META_FILE]
-        self.working_copy.syncer.client.download_object(lock_file.name, file, version=lock_file.version)
+
+        logger.debug('Downloading lock file "%s" at version %i.', lock_file['name'], lock_file['version'])
+        self.working_copy.syncer.client.download_object(base_path + '/' + lock_file['name'], file, version=lock_file['version'])
+        logger.debug('Download successful.')
+
+        file.close()
+
+        with open(name) as f:
+            lock_data = f.read()
 
         os.unlink(name)
 
-        with open(name) as f:
-            return f.read()
+        return lock_data
 
     def active_in(self, data):
         # TODO: Handle multiple locks here

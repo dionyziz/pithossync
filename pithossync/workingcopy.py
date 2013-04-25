@@ -95,8 +95,12 @@ class WorkingCopy:
         self.lock = lock.Lock(self)
 
         if folder is None:
+            # working copy already init'ed
+            self.meta_file.load()
             self.folder = self.meta_file.remote_dir
         else:
+            # working copy not init'ed
+            # the caller must call .init() or .clone() on it
             self.folder = folder
 
     def init(self):
@@ -145,9 +149,9 @@ class WorkingCopy:
             type = obj['content_type']
             version = obj['x_object_version']
             ret[name] = {
-                name: name,
-                type: type,
-                version: version
+                'name': name,
+                'type': type,
+                'version': version
             }
 
         if not found:

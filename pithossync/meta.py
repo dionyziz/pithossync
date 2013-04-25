@@ -26,8 +26,8 @@ class LocalMetaFile:
     meta_file_name = None
 
     @classmethod
-    def is_meta_file(name):
-        return LocalMetaFile.LOCAL_META_FILENAME == name
+    def is_meta_file(cls, name):
+        return cls.LOCAL_META_FILENAME == name
 
     def __init__(self, local_dir):
         self.local_dir = local_dir

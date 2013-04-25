@@ -3,6 +3,7 @@ import os
 import time
 import shutil
 import logging
+from lock import Lock
 
 
 logger = logging.getLogger(__name__)
@@ -19,13 +20,13 @@ def pull(working_copy):
         objects = response['list']
 
         # handle lock
-        if working_copy.lock.active_in(working_copy.lock.extract_from(objects)):
+        if working_copy.lock.active_in(working_copy.lock.extract_from(working_copy.folder, objects)):
             raise pithossync.ConflictError
 
             # TODO: Handle pulling parallel to a pushing
 
             # use of that particular version of remote_meta_file is crucial, as it could have been removed and regained since
-            # download_file(remote_meta_file, objects[remote_meta_file].version)
+            # download_file(remote_meta_file, objects[remote_meta_file]['version'])
             # combine versions in remote_meta_file and list_objects
 
         return objects
@@ -41,7 +42,7 @@ def pull(working_copy):
 
         try:
             # check that object existed in last pull
-            working_copy.meta.get_object_version(object_path)
+            working_copy.meta_file.get_object_version(object_path)
 
             # check that object also exists locally
             if not os.path.exists(os_path):
@@ -50,7 +51,7 @@ def pull(working_copy):
             # check if currently is a dir
             if os.path.isdir(local_object_path):
                 # was also a dir in last pull?
-                if working_copy.meta.is_object_folder(object_path):
+                if working_copy.meta_file.is_object_folder(object_path):
                     # TODO: Recursively check that the folder's contents
                     #       have not been modified through creation of new objects,
                     #       deletion of objects, or modification of objects
@@ -61,7 +62,7 @@ def pull(working_copy):
 
             # object locally is a file
             # check that it was a file in last pull
-            if not working_copy.meta.is_object_file(object_path):
+            if not working_copy.meta_file.is_object_file(object_path):
                 # object was not a file in last pull
                 return CLEANLINESS_DIRTY_TYPE_CHANGED
 
@@ -71,7 +72,7 @@ def pull(working_copy):
 
             # TODO: if mtimes match, compare hashes
             present_time = time.ctime(stat.st_mtime)
-            past_time = working_copy.meta.get_object_modified(object_path)
+            past_time = working_copy.meta_file.get_object_modified(object_path)
 
             assert(present_time >= past_time)
 
@@ -102,29 +103,33 @@ def pull(working_copy):
         #       so that directories can be created incrementally without
         #       being interpreted as dirty.
 
-        for object in remote_object_list:
-            logger.debug('Processing remote object "%s" at version %i', object.name, object.version)
+        for (name, object) in remote_object_list.items():
+            logger.debug('Processing remote object "%s" at version %i', object['name'], object['version'])
+
+            if Lock.is_lock_file(name):
+                logger.debug('Skipping server lock file.')
+                continue
 
             try:
                 # throws
-                local_version = working_copy.meta.get_object_version(object.name)
+                local_version = working_copy.meta_file.get_object_version(object['name'])
 
                 logger.debug('Object exists locally since last pull.')
 
                 # file has existed locally since last sync
             
-                if local_version == object.version:
+                if local_version == object['version']:
                     # nothing changed - we have the same version as on the server
                     # although local file may be dirty
-                    logger.debug('Local object version %i and remote object version %i match, no download needed.', local_version, object.version)
+                    logger.debug('Local object version %i and remote object version %i match, no download needed.', local_version, object['version'])
                     continue
 
                 # versions are strictly increasing
-                assert(object.version > local_version)
+                assert(object['version'] > local_version)
 
-                logger.debug('Local object version %i is outdated and superseeded by remote object version %i.', local_version, object.version)
+                logger.debug('Local object version %i is outdated and superseeded by remote object version %i.', local_version, object['version'])
 
-                if is_object_dirty(object.name):
+                if is_object_dirty(object['name']):
                     logger.debug('Local object is dirty, bailing out with conflict.')
                     raise pithossync.ConflictError
 
@@ -138,25 +143,25 @@ def pull(working_copy):
                 logger.debug('Object is new since last pull.')
                 
                 # check if folder
-                if object.folder and os.isdir(object.name):
+                if object['is_folder'] and os.isdir(object['name']):
                     logger.debug('Remote object is a folder and has also been created locally, no action needed.')
 
                     # remote object is a folder and has also been created locally as a folder
                     # nothing to do
                     continue
 
-                if is_object_dirty(object.name):
+                if is_object_dirty(object['name']):
                     logger.debug('Object has also been created independently locally, bailing out with conflict.')
 
                     raise pithossync.ConflictError
 
-            if object.folder:
+            if object['folder']:
                 logger.debug('Remote object is a folder.')
                 
                 try:
-                    logger.debug('makedirs "%s"', object.name)
+                    logger.debug('makedirs "%s"', object['name'])
 
-                    os.makedirs(object.name)
+                    os.makedirs(object['name'])
 
                     logger.debug('mkdir successful.')
                 except OSError:
@@ -168,21 +173,21 @@ def pull(working_copy):
                 logger.debug('Updating meta file with new folder object information.')
 
                 # modified date does not matter for folders
-                working_copy.meta.set_file_version(object.name, object.version)
+                working_copy.meta_file.set_file_version(object['name'], object['version'])
 
                 logger.debug('Meta file updated.')
             else:
                 logger.debug('Remote object is a file.')
 
                 try:
-                    os.makedirs(os.path.dirname(object.name))
-                    logger.debug('Created parent directories of "%s".', object.name)
+                    os.makedirs(os.path.dirname(object['name']))
+                    logger.debug('Created parent directories of "%s".', object['name'])
                 except OSError:
                     pass
 
-                logger.debug('Downloading remote file object "%s" at version %i.', object.name, object.version)
+                logger.debug('Downloading remote file object "%s" at version %i.', object['name'], object['version'])
 
-                download_file(object.name, object.version)
+                download_file(object['name'], object['version'])
 
                 logger.debug('File object downloaded.')
 
@@ -192,8 +197,8 @@ def pull(working_copy):
 
                 logger.debug('Updating meta file with new file object information.')
 
-                working_copy.meta.set_file_modified(object.name, present_time)
-                working_copy.meta.set_file_version(object.name, object.version)
+                working_copy.meta_file.set_file_modified(object['name'], present_time)
+                working_copy.meta_file.set_file_version(object['name'], object['version'])
 
                 logger.debug('Meta file updated.')
 
@@ -206,26 +211,26 @@ def pull(working_copy):
         logger.debug('Deleting %i objects', len(objects))
 
         for object in objects:
-            logger.debug('Deleting object "%s"', object.name)
-            if get_local_object_cleanliness(object.name) not in [CLEANLINESS_DIRTY_DELETED, CLEANLINESS_CLEAN]:
+            logger.debug('Deleting object "%s"', object['name'])
+            if get_local_object_cleanliness(object['name']) not in [CLEANLINESS_DIRTY_DELETED, CLEANLINESS_CLEAN]:
                 raise pithossync.ConflictError
             shutil.rmtree(os.path.join(self.local, folder))
-            working_copy.meta.remove_object(object)
+            working_copy.meta_file.remove_object(object)
 
         logger.debug('%i objects deleted.', len(objects))
 
     logger.info('Pulling remote mirrored folder "%s" into local working copy "%s"', working_copy.folder, working_copy.local)
 
     # no lock needed for pull
-    remote_file_list = list_remote_objects()
+    remote_object_list = list_remote_objects()
 
-    if remote_file_list is None:
+    if remote_object_list is None:
         # fast pull
         return
 
-    local_object_list = working_copy.meta.get_object_list()
+    local_object_list = working_copy.meta_file.get_object_list()
 
-    download_objects(remote_file_list)
+    download_objects(remote_object_list)
 
     # TODO: unify formats for local/remote file lists
 
