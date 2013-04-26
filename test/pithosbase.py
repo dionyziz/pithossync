@@ -1,11 +1,13 @@
 from __future__ import absolute_import
-
 import unittest
 import os
+import logging
 
 from kamaki.clients.pithos import PithosClient, ClientError
-
 import pithossync
+
+
+logger = logging.getLogger(__name__)
 
 
 class TestPithosBase(unittest.TestCase):
@@ -188,6 +190,16 @@ class TestPithosBase(unittest.TestCase):
 
         # clean up from previous test runs that may have crashed
         self.workspace.delete()
+        self.remote.recursive_delete(self.remote.path)
 
     def tearDown(self):
-        pass
+        """Clean up all temporary directories on the server and on the client.
+
+        Local: self.local.path, self.workspace.path
+        Remote: self.remote.path
+        """
+
+        logger.debug('pithosbase test suite cleaning up')
+
+        self.workspace.delete()
+        self.remote.recursive_delete(self.remote.path)

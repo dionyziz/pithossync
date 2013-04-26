@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-
 import unittest
 import os
 import filecmp
@@ -10,6 +9,9 @@ from kamaki.clients.pithos import PithosClient, ClientError
 from kamaki.clients import logger
 
 from test.pithosbase import TestPithosBase
+
+
+logger = logging.getLogger(__name__)
 
 
 class TestPithosSyncBase(TestPithosBase):
@@ -65,6 +67,29 @@ class TestPithosSyncBase(TestPithosBase):
         self.local = self.Local(self, local_path)
         self.local2 = self.Local(self, local_path_2)
 
+        # clean up from previous test runs that may have crashed
+        self.local.delete()
+
+        # perform initialization on the remote folder (create lockfile etc.)
+        self.syncer.init(self.workspace.path, self.remote.path)
+
+        # clean up the workspace after init so that unit tests can cleanly mkdir it
+        self.workspace.delete()
+
+        assert(not self.local.exists())
+        assert(not self.local.exists())
+
+        try:
+            assert(self.remote.container_exists(self.container))
+            self.remote.mkdir()
+            assert(self.remote.object_exists(self.remote.path))
+            assert(self.remote.is_folder(self.remote.path))
+            assert(self.remote.folder_empty_but_lock(self.remote.path))
+        except ClientError:
+            print('\n\nUnable to run test suite.')
+            print('Did you export the correct URL using the PITHOS_URL environmental variable?')
+            sys.exit(0)
+
     def assertTreesEqual(self, a, b):
         comparator = filecmp.dircmp(a, b, ['.pithos'])
         self.assertEqual(len(comparator.left_only), 0)
@@ -75,3 +100,11 @@ class TestPithosSyncBase(TestPithosBase):
 
     def assertTreesMatch(self):
         self.assertTreesEqual(self.local.path, self.workspace.path)
+
+    def tearDown(self):
+        logger.debug('syncbase test suite cleaning up')
+
+        self.local.delete()
+        self.local2.delete()
+
+        super(TestPithosSyncBase, self).tearDown()

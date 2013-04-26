@@ -1,5 +1,6 @@
 import unittest
 import logging
+import sys
 
 import test.all_tests
 
@@ -27,5 +28,10 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter('%(asctime)s:%(name)s:%(levelname)s: %(message)s'))
 logger.addHandler(handler)
 
-testSuite = test.all_tests.create_test_suite()
+if len(sys.argv) > 1:
+    which = sys.argv[1]
+else:
+    which = '*'
+
+testSuite = test.all_tests.create_test_suite(which=which)
 textRunner = unittest.TextTestRunner().run(testSuite)
