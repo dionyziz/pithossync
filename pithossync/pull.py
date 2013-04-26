@@ -143,7 +143,7 @@ def pull(working_copy):
                 logger.debug('Object is new since last pull.')
                 
                 # check if folder
-                if object['is_folder'] and os.isdir(object['name']):
+                if object['is_folder'] and os.path.isdir(object['name']):
                     logger.debug('Remote object is a folder and has also been created locally, no action needed.')
 
                     # remote object is a folder and has also been created locally as a folder
