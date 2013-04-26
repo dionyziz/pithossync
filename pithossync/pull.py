@@ -96,15 +96,13 @@ def pull(working_copy):
     def download_file(object_name, object_version):
         working_copy.download(object_name, version=object_version)
 
-    def download_objects(remote_object_list):
-        logger.debug('Processing %i remote objects', len(remote_object_list))
+    def filter_objects_to_download(remote_object_list):
+        filtered_object_list = {}
 
-        # TODO: Sort remote_object_list by path length in ascending order
-        #       so that directories can be created incrementally without
-        #       being interpreted as dirty.
+        logger.debug('Filtering %i remote objects to download.', len(remote_object_list))
 
         for (name, object) in remote_object_list.items():
-            logger.debug('Processing remote object "%s" at version %i', object['name'], object['version'])
+            logger.debug('Processing remote object "%s" at version %i.', object['name'], object['version'])
 
             if Lock.is_lock_file(name):
                 logger.debug('Skipping server lock file.')
@@ -132,10 +130,6 @@ def pull(working_copy):
                 if is_local_object_dirty(object['name']):
                     logger.debug('Local object is dirty, bailing out with conflict.')
                     raise pithossync.ConflictError
-
-                # TODO: remove object from local storage before downloading it / mkdiring it
-                #       as it might be of different type
-
             except KeyError:
                 # file is new on the server-side
                 # check if it has also been created locally
@@ -156,19 +150,39 @@ def pull(working_copy):
                     raise pithossync.ConflictError
 
             if object['is_folder']:
+                type = 'folder'
+            else:
+                type = 'file'
+
+            logger.debug('Queueing remote object of type %s named "%s" at version "%i" to be fetched.', type, object['name'], object['version'])
+
+            filtered_object_list[object['name']] = object
+
+        logger.debug('%i remote objects filtered down to %i.', len(remote_object_list), len(filtered_object_list))
+
+        return filtered_object_list
+
+    def download_objects(remote_object_list):
+        logger.debug('Fetching %i remote objects.', len(remote_object_list))
+
+        for (name, object) in remote_object_list.items():
+            logger.debug('Fetching remote object "%s" at version %i.', object['name'], object['version'])
+
+            # TODO: remove object from local storage before downloading it / mkdiring it
+            #       as it might be of different type
+
+            if object['is_folder']:
                 logger.debug('Remote object is a folder.')
                 
                 try:
                     logger.debug('makedirs "%s"', object['name'])
 
-                    os.makedirs(object['name'])
+                    os.makedirs(working_copy.local + '/' + object['name'])
 
                     logger.debug('mkdir successful.')
                 except OSError:
-                    logger.debug('mkdir failed.')
-
                     # directory already exists; this is caused if it was created as a parent directory previously
-                    pass
+                    logger.debug('mkdir failed.')
 
                 logger.debug('Updating meta file with new folder object information.')
 
@@ -181,7 +195,7 @@ def pull(working_copy):
                 logger.debug('Remote object is a file.')
 
                 try:
-                    os.makedirs(os.path.dirname(object['name']))
+                    os.makedirs(working_copy.local + '/' + os.path.dirname(object['name']))
                     logger.debug('Created parent directories of "%s".', object['name'])
                 except OSError:
                     pass
@@ -204,7 +218,7 @@ def pull(working_copy):
 
                 logger.debug('Meta file updated.')
 
-        logger.debug('%i remote objects processed.', len(remote_object_list))
+        logger.debug('%i remote objects fetched.', len(remote_object_list))
 
     def delete_objects(objects):
         # TODO: Remove all files first and then folders from leafs to root
@@ -230,9 +244,12 @@ def pull(working_copy):
         # fast pull
         return
 
+    filtered_remote_object_list = filter_objects_to_download(remote_object_list)
     local_object_list = working_copy.meta_file.get_object_list()
 
-    download_objects(remote_object_list)
+    logger.debug('About to apply local changes!')
+
+    download_objects(filtered_remote_object_list)
 
     # TODO: unify formats for local/remote file lists
 
