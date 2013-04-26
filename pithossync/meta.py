@@ -89,7 +89,11 @@ class LocalMetaFile:
 
     # all object paths are relative to the root/local directory of the working copy
     def get_object_version(self, path):
-        return self.object_info[path]['version']
+        try:
+            return self.object_info[path]['version']
+        except KeyError as e:
+            logger.debug('Object "%s" does not exist in local meta file.', path)
+            raise
 
     def set_object_version(self, path, version):
         logger.debug('Setting local cache version of object "%s" to %i.', path, version)
@@ -118,7 +122,7 @@ class LocalMetaFile:
         return self.object_info[path]['is_folder']
     
     def is_object_file(self, path):
-        return not self.object_info[path]['folder']
+        return not self.object_info[path]['is_folder']
 
     def mark_object_as_folder(self, path):
         logger.debug('Marking local cache type of object "%s" as folder.', path)
